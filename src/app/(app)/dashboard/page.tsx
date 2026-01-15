@@ -252,7 +252,7 @@ export default async function DashboardPage() {
                 to start tracking.
               </div>
             ) : (
-              todayGoals.map(({ goal, todayDone, checkInsThisWeek }) => {
+            todayGoals.map(({ goal, todayDone, checkInsThisWeek, checkIns }) => {
                 const target =
                   goal.cadenceType === "WEEKLY" && goal.weeklyTarget
                     ? goal.weeklyTarget
@@ -266,16 +266,14 @@ export default async function DashboardPage() {
                 )
                 const counts = last7Keys.map(
                   (key) =>
-                    item.checkIns.filter((check) => check.localDateKey === key)
-                      .length
+                    checkIns.filter((check) => check.localDateKey === key).length
                 )
                 const last14Keys = Array.from({ length: 14 }).map((_, index) =>
                   getLocalDateKey(subDays(now, 13 - index), user.timezone)
                 )
                 const sparkValues = last14Keys.map(
                   (key) =>
-                    item.checkIns.filter((check) => check.localDateKey === key)
-                      .length
+                    checkIns.filter((check) => check.localDateKey === key).length
                 )
 
                 return (
