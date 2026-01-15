@@ -266,7 +266,7 @@ export default async function DashboardPage() {
                 )
                 const counts = last7Keys.map(
                   (key) =>
-                    checkIns.filter((check) => check.localDateKey === key)
+                    item.checkIns.filter((check) => check.localDateKey === key)
                       .length
                 )
                 const last14Keys = Array.from({ length: 14 }).map((_, index) =>
@@ -274,7 +274,7 @@ export default async function DashboardPage() {
                 )
                 const sparkValues = last14Keys.map(
                   (key) =>
-                    checkIns.filter((check) => check.localDateKey === key)
+                    item.checkIns.filter((check) => check.localDateKey === key)
                       .length
                 )
 
