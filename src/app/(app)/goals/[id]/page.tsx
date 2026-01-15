@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth"
 import { redirect } from "next/navigation"
-import { parseISO } from "date-fns"
+import { parseISO, subDays } from "date-fns"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { getLocalDateKey, getWeekKey, getWeekStart } from "@/lib/time"
@@ -14,7 +14,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CheckInButton } from "@/components/check-in-button"
-import { Calendar } from "@/components/ui/calendar"
+import { TinyHeatmap } from "@/components/tiny-heatmap"
+import { Sparkline } from "@/components/sparkline"
 
 export default async function GoalDetailPage({
   params,
@@ -54,6 +55,22 @@ export default async function GoalDetailPage({
       : 0
 
   const checkInDates = dateKeys.map((key) => parseISO(key))
+  const recentCheckIns = [...checkIns]
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    .slice(0, 8)
+
+  const last7Keys = Array.from({ length: 7 }).map((_, index) =>
+    getLocalDateKey(subDays(new Date(), 6 - index), user.timezone)
+  )
+  const last7Counts = last7Keys.map(
+    (key) => checkIns.filter((check) => check.localDateKey === key).length
+  )
+  const last21Keys = Array.from({ length: 21 }).map((_, index) =>
+    getLocalDateKey(subDays(new Date(), 20 - index), user.timezone)
+  )
+  const sparkValues = last21Keys.map(
+    (key) => checkIns.filter((check) => check.localDateKey === key).length
+  )
 
   return (
     <div className="space-y-6">
@@ -74,17 +91,45 @@ export default async function GoalDetailPage({
           <CardHeader>
             <CardTitle>Check-in history</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Calendar
-              mode="multiple"
-              selected={checkInDates}
-              modifiers={{
-                checkedIn: checkInDates,
-              }}
-              modifiersClassNames={{
-                checkedIn: "bg-primary text-primary-foreground rounded-md",
-              }}
-            />
+          <CardContent className="space-y-4">
+            <div>
+              <div className="text-xs uppercase text-muted-foreground">
+                Last 7 days
+              </div>
+              <div className="mt-2">
+                <TinyHeatmap counts={last7Counts} />
+              </div>
+            </div>
+            <div>
+              <div className="text-xs uppercase text-muted-foreground">
+                Streak activity
+              </div>
+              <div className="mt-2">
+                <Sparkline values={sparkValues} />
+              </div>
+            </div>
+            <div className="rounded-xl border bg-background p-3 text-sm text-muted-foreground">
+              Recent check-ins
+            </div>
+            <div className="space-y-2 text-sm">
+              {recentCheckIns.length === 0 ? (
+                <div className="text-muted-foreground">
+                  No check-ins yet. Tap “Check in” to start.
+                </div>
+              ) : (
+                recentCheckIns.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between rounded-lg border bg-background px-3 py-2"
+                  >
+                    <span>{item.localDateKey}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {item.timestamp.toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
         <Card>
