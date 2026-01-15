@@ -59,7 +59,16 @@ export default function SignUpPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input id="password" name="password" type="password" required />
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              minLength={8}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Minimum 8 characters.
+            </p>
           </div>
           <Button className="w-full" type="submit" disabled={isLoading}>
             {isLoading ? "Creating..." : "Create account"}

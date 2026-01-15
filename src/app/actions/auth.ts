@@ -12,7 +12,7 @@ export async function signUpAction(formData: FormData) {
   }
   const parsed = signUpSchema.safeParse(raw)
   if (!parsed.success) {
-    return { ok: false, error: "Please fill out all fields correctly." }
+    return { ok: false, error: parsed.error.issues[0]?.message }
   }
 
   const existing = await prisma.user.findUnique({
