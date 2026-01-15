@@ -37,7 +37,11 @@ export default async function SettingsPage() {
         </CardContent>
       </Card>
 
-      <SettingsForm currentTimezone={user.timezone} />
+      <SettingsForm
+        currentTimezone={user.timezone}
+        reminderTime={user.reminderTime}
+        reminderFrequency={user.reminderFrequency as "DAILY" | "WEEKDAYS"}
+      />
 
       <Card>
         <CardHeader>

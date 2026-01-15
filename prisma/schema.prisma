@@ -23,6 +23,8 @@ model User {
   email        String        @unique
   passwordHash String
   timezone     String        @default("America/Chicago")
+  reminderTime String        @default("09:00")
+  reminderFrequency String   @default("DAILY")
   image        String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt

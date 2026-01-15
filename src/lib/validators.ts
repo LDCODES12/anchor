@@ -33,3 +33,10 @@ export const checkInSchema = z.object({
 export const updateTimezoneSchema = z.object({
   timezone: z.string().min(3),
 })
+
+export const updateReminderSchema = z.object({
+  reminderTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/),
+  reminderFrequency: z.enum(["DAILY", "WEEKDAYS"]),
+})

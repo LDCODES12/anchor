@@ -3,7 +3,7 @@
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { updateTimezoneAction } from "@/app/actions/settings"
+import { updateReminderAction, updateTimezoneAction } from "@/app/actions/settings"
 import { leaveGroupAction } from "@/app/actions/groups"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,7 +28,26 @@ const timezones = [
   "Australia/Sydney",
 ]
 
-export function SettingsForm({ currentTimezone }: { currentTimezone: string }) {
+const reminderTimes = [
+  "07:00",
+  "08:00",
+  "09:00",
+  "10:00",
+  "12:00",
+  "15:00",
+  "18:00",
+  "20:00",
+]
+
+export function SettingsForm({
+  currentTimezone,
+  reminderTime,
+  reminderFrequency,
+}: {
+  currentTimezone: string
+  reminderTime: string
+  reminderFrequency: "DAILY" | "WEEKDAYS"
+}) {
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
@@ -58,6 +77,24 @@ export function SettingsForm({ currentTimezone }: { currentTimezone: string }) {
     })
   }
 
+  const handleReminderUpdate = (next: {
+    reminderTime: string
+    reminderFrequency: "DAILY" | "WEEKDAYS"
+  }) => {
+    const formData = new FormData()
+    formData.set("reminderTime", next.reminderTime)
+    formData.set("reminderFrequency", next.reminderFrequency)
+    startTransition(async () => {
+      const result = await updateReminderAction(formData)
+      if (!result.ok) {
+        toast.error(result.error ?? "Could not update reminder settings.")
+        return
+      }
+      toast.success("Reminder settings updated.")
+      router.refresh()
+    })
+  }
+
   return (
     <div className="space-y-4">
       <Card>
@@ -81,14 +118,62 @@ export function SettingsForm({ currentTimezone }: { currentTimezone: string }) {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Notifications</CardTitle>
+          <CardTitle>Reminders</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-between text-sm text-muted-foreground">
-          <div>
-            Mobile push notifications are coming soon. We’ll let you know when
-            friends check in.
+        <CardContent className="space-y-4 text-sm text-muted-foreground">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <div className="mb-2 text-xs uppercase text-muted-foreground">
+                Reminder time
+              </div>
+              <Select
+                value={reminderTime}
+                onValueChange={(value) =>
+                  handleReminderUpdate({
+                    reminderTime: value,
+                    reminderFrequency,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {reminderTimes.map((time) => (
+                    <SelectItem key={time} value={time}>
+                      {time}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <div className="mb-2 text-xs uppercase text-muted-foreground">
+                Frequency
+              </div>
+              <Select
+                value={reminderFrequency}
+                onValueChange={(value) =>
+                  handleReminderUpdate({
+                    reminderTime,
+                    reminderFrequency: value as "DAILY" | "WEEKDAYS",
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DAILY">Daily</SelectItem>
+                  <SelectItem value="WEEKDAYS">Weekdays</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <Switch disabled />
+          <div className="flex items-center justify-between rounded-xl border bg-background px-3 py-2">
+            <span>Push notifications (coming soon)</span>
+            <Switch disabled />
+          </div>
         </CardContent>
       </Card>
       <Card>

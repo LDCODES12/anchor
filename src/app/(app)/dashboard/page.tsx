@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { getLocalDateKey, getWeekKey, getWeekStart } from "@/lib/time"
+import { formatInTimeZone } from "date-fns-tz"
 import {
   computeDailyStreak,
   computeWeeklyStreak,
@@ -38,8 +39,11 @@ export default async function DashboardPage() {
   })
 
   const todayKey = getLocalDateKey(new Date(), user.timezone)
-  const weekKey = getWeekKey(new Date(), user.timezone)
-  const weekStart = getWeekStart(new Date(), user.timezone)
+  const now = new Date()
+  const weekKey = getWeekKey(now, user.timezone)
+  const weekStart = getWeekStart(now, user.timezone)
+  const weekdayNumber = Number(formatInTimeZone(now, user.timezone, "i"))
+  const daysElapsed = Math.max(1, Math.min(7, weekdayNumber))
 
   const todayGoals = goals.map((goal) => {
     const checkIns = goal.checkIns.filter((check) => check.userId === user.id)
@@ -94,6 +98,9 @@ export default async function DashboardPage() {
     timeZone: user.timezone,
     today: new Date(),
   })
+
+  const reminderLabel =
+    user.reminderFrequency === "WEEKDAYS" ? "Weekdays" : "Daily"
 
   return (
     <div className="space-y-6">
@@ -197,6 +204,68 @@ export default async function DashboardPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Weekly planning</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {todayGoals.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              Add goals to see your weekly plan.
+            </div>
+          ) : (
+            todayGoals.map(({ goal, checkInsThisWeek }) => {
+              const weeklyTarget =
+                goal.cadenceType === "WEEKLY" && goal.weeklyTarget
+                  ? goal.weeklyTarget
+                  : 7
+              const expectedByNow =
+                goal.cadenceType === "WEEKLY" && goal.weeklyTarget
+                  ? Math.ceil((goal.weeklyTarget * daysElapsed) / 7)
+                  : daysElapsed
+              const onTrack = checkInsThisWeek.length >= expectedByNow
+              const progress = Math.min(
+                100,
+                Math.round((checkInsThisWeek.length / weeklyTarget) * 100)
+              )
+
+              return (
+                <div
+                  key={goal.id}
+                  className="rounded-2xl border bg-background p-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium">{goal.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {goal.cadenceType === "DAILY"
+                          ? "Daily"
+                          : `Weekly target: ${goal.weeklyTarget}x`}
+                      </div>
+                    </div>
+                    <Badge variant={onTrack ? "secondary" : "outline"}>
+                      {onTrack ? "On track" : "Behind"}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Progress this week</span>
+                      <span>
+                        {checkInsThisWeek.length}/{weeklyTarget}
+                      </span>
+                    </div>
+                    <Progress value={progress} />
+                    <div className="text-[11px] text-muted-foreground">
+                      Aim for {expectedByNow} by today
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Badges</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
@@ -219,9 +288,18 @@ export default async function DashboardPage() {
           <CardHeader>
             <CardTitle>Upcoming reminders</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Personal reminders are coming soon. For now, set a daily time on
-            your calendar to check in.
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <div>
+              Next reminder:{" "}
+              <span className="text-foreground">{user.reminderTime}</span>
+            </div>
+            <div>
+              Frequency: <span className="text-foreground">{reminderLabel}</span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Push/email reminders are coming soon. We&apos;ll notify you when
+              they&apos;re ready.
+            </div>
           </CardContent>
         </Card>
         <Card>
