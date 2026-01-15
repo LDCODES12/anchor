@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: goalgrid
+      POSTGRES_PASSWORD: goalgrid
+      POSTGRES_DB: goalgrid
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:

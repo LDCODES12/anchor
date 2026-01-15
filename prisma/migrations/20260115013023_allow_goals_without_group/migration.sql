@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Goal" ALTER COLUMN "groupId" DROP NOT NULL;
