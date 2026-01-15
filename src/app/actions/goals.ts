@@ -36,7 +36,7 @@ export async function createGoalAction(formData: FormData) {
           : null,
       notes: parsed.data.notes ?? null,
       owner: { connect: { id: session.user.id } },
-      groupId: membership?.groupId ?? null,
+      ...(membership?.groupId ? { groupId: membership.groupId } : {}),
     },
   })
 
