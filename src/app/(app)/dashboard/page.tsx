@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { getLocalDateKey, getWeekKey, getWeekStart } from "@/lib/time"
 import { formatInTimeZone } from "date-fns-tz"
+import { addDays, subDays } from "date-fns"
 import {
   computeDailyStreak,
   computeWeeklyPoints,
@@ -20,6 +21,8 @@ import { Button } from "@/components/ui/button"
 import { CheckInButton } from "@/components/check-in-button"
 import { CompletionRing } from "@/components/completion-ring"
 import { FocusModeToggle } from "@/components/focus-mode-toggle"
+import { TinyHeatmap } from "@/components/tiny-heatmap"
+import { Sparkline } from "@/components/sparkline"
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -45,6 +48,7 @@ export default async function DashboardPage() {
   const now = new Date()
   const weekKey = getWeekKey(now, user.timezone)
   const weekStart = getWeekStart(now, user.timezone)
+  const lastWeekKey = getWeekKey(subDays(now, 7), user.timezone)
   const weekdayNumber = Number(formatInTimeZone(now, user.timezone, "i"))
   const daysElapsed = Math.max(1, Math.min(7, weekdayNumber))
 
@@ -104,6 +108,27 @@ export default async function DashboardPage() {
       })
     )
   }, 0)
+  const lastWeekScore = todayGoals.reduce((sum, item) => {
+    const lastWeekCheckIns = item.checkIns.filter(
+      (check) => check.weekKey === lastWeekKey
+    )
+    return (
+      sum +
+      computeWeeklyPoints({
+        goal: {
+          cadenceType: item.goal.cadenceType,
+          pointsPerCheckIn: item.goal.pointsPerCheckIn,
+          weeklyTarget: item.goal.weeklyTarget,
+          weeklyTargetBonus: item.goal.weeklyTargetBonus,
+          streakBonus: item.goal.streakBonus,
+        },
+        checkInsThisWeek: lastWeekCheckIns,
+        currentStreak: item.dailyStreak,
+        timeZone: user.timezone,
+        today: subDays(now, 7),
+      })
+    )
+  }, 0)
 
   const maxDailyStreak = Math.max(
     0,
@@ -126,6 +151,14 @@ export default async function DashboardPage() {
     }, {} as Record<string, number>)
   const bestHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]
   const bestTimeLabel = bestHour ? `${bestHour[0]}:00` : "Not enough data"
+
+  const trendDelta = weeklyScore - lastWeekScore
+  const trendLabel =
+    trendDelta === 0
+      ? "Same as last week"
+      : trendDelta > 0
+      ? `+${trendDelta} vs last week`
+      : `${trendDelta} vs last week`
   const badges = getBadges({
     totalCheckIns,
     dailyStreaks: todayGoals
@@ -177,6 +210,7 @@ export default async function DashboardPage() {
           <div className="space-y-3">
             <div className="text-sm text-muted-foreground">Weekly score</div>
             <div className="text-3xl font-semibold">{weeklyScore} points</div>
+            <div className="text-sm text-muted-foreground">{trendLabel}</div>
             <div className="text-sm text-muted-foreground">
               Best streak: {maxDailyStreak} days
             </div>
@@ -227,6 +261,23 @@ export default async function DashboardPage() {
                   100,
                   Math.round((checkInsThisWeek.length / target) * 100)
                 )
+                const last7Keys = Array.from({ length: 7 }).map((_, index) =>
+                  getLocalDateKey(subDays(now, 6 - index), user.timezone)
+                )
+                const counts = last7Keys.map(
+                  (key) =>
+                    checkIns.filter((check) => check.localDateKey === key)
+                      .length
+                )
+                const last14Keys = Array.from({ length: 14 }).map((_, index) =>
+                  getLocalDateKey(subDays(now, 13 - index), user.timezone)
+                )
+                const sparkValues = last14Keys.map(
+                  (key) =>
+                    checkIns.filter((check) => check.localDateKey === key)
+                      .length
+                )
+
                 return (
                   <div
                     key={goal.id}
@@ -255,6 +306,16 @@ export default async function DashboardPage() {
                         </span>
                       </div>
                       <Progress value={progress} />
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <span>Last 7 days</span>
+                        <TinyHeatmap counts={counts} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span>Streak history</span>
+                        <Sparkline values={sparkValues} />
+                      </div>
                     </div>
                   </div>
                 )

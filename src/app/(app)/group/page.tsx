@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { CompletionRing } from "@/components/completion-ring"
+import { CheerButton } from "@/components/cheer-button"
+import { RemindButton } from "@/components/remind-button"
 import { GroupSetup } from "@/components/group-setup"
 
 export default async function GroupPage() {
@@ -141,6 +143,11 @@ export default async function GroupPage() {
   )
 
   const nudges = sortedLeaderboard.filter((entry) => !entry.checkedInToday)
+  const pulseCheckedIn = sortedLeaderboard.filter((entry) => entry.checkedInToday).length
+  const pulsePct =
+    sortedLeaderboard.length === 0
+      ? 0
+      : Math.round((pulseCheckedIn / sortedLeaderboard.length) * 100)
 
   return (
     <div className="space-y-6">
@@ -214,24 +221,40 @@ export default async function GroupPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Accountability nudges</CardTitle>
+            <CardTitle>Group pulse</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {nudges.length === 0 ? (
-              <div className="text-muted-foreground">
-                Everyone has checked in today. 🎉
+          <CardContent className="space-y-4">
+            <div className="rounded-xl border bg-background px-3 py-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span>Checked in today</span>
+                <span className="font-medium">
+                  {pulseCheckedIn}/{sortedLeaderboard.length}
+                </span>
               </div>
-            ) : (
-              nudges.map((entry) => (
+              <div className="mt-3 h-2 w-full rounded-full bg-muted">
                 <div
-                  key={entry.member.id}
-                  className="flex items-center justify-between rounded-xl border bg-background px-3 py-2"
-                >
-                  <span>{entry.member.user.name}</span>
-                  <Badge variant="outline">Send a nudge</Badge>
+                  className="h-2 rounded-full bg-primary"
+                  style={{ width: `${pulsePct}%` }}
+                />
+              </div>
+            </div>
+            <div className="space-y-3 text-sm">
+              {nudges.length === 0 ? (
+                <div className="text-muted-foreground">
+                  Everyone has checked in today. 🎉
                 </div>
-              ))
-            )}
+              ) : (
+                nudges.map((entry) => (
+                  <div
+                    key={entry.member.id}
+                    className="flex items-center justify-between rounded-xl border bg-background px-3 py-2"
+                  >
+                    <span>{entry.member.user.name}</span>
+                    <RemindButton name={entry.member.user.name} />
+                  </div>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
       </section>
@@ -343,9 +366,12 @@ export default async function GroupPage() {
                   {item.user.name} checked in:{" "}
                   <span className="font-medium">{item.goal.name}</span>
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  {item.timestamp.toLocaleString()}
-                </span>
+                <div className="flex items-center gap-3">
+                  <CheerButton name={item.user.name} />
+                  <span className="text-xs text-muted-foreground">
+                    {item.timestamp.toLocaleString()}
+                  </span>
+                </div>
               </div>
             ))
           )}
