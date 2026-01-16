@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CheckInButton } from "@/components/check-in-button"
 import { DeleteGoalButton } from "@/components/delete-goal-button"
+import { EditGoalDialog } from "@/components/edit-goal-dialog"
 import { TinyHeatmap } from "@/components/tiny-heatmap"
 import { MonthlyHeatmap } from "@/components/monthly-heatmap"
 import { Sparkline } from "@/components/sparkline"
@@ -122,6 +123,16 @@ export default async function GoalDetailPage({
             completed={todayDone}
             todayCount={todayCount}
             dailyTarget={dailyTarget}
+          />
+          <EditGoalDialog 
+            goal={{
+              id: goal.id,
+              name: goal.name,
+              notes: goal.notes,
+              cadenceType: goal.cadenceType,
+              weeklyTarget: goal.weeklyTarget,
+              dailyTarget: goal.dailyTarget,
+            }}
           />
           <DeleteGoalButton goalId={goal.id} goalName={goal.name} />
         </div>

@@ -75,6 +75,7 @@ model Goal {
   weeklyTargetBonus Int         @default(20)
   streakBonus      Int          @default(5)
   streakFreezes    Int          @default(1)  // Allowed freeze days per week
+  sortOrder        Int          @default(0)  // For drag-and-drop ordering
   active           Boolean      @default(true)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
@@ -88,6 +89,7 @@ model Goal {
 
   @@index([groupId])
   @@index([ownerId])
+  @@index([ownerId, sortOrder])
 }
 
 model CheckIn {

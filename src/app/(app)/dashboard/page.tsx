@@ -28,6 +28,7 @@ import { FocusModeToggle } from "@/components/focus-mode-toggle"
 import { TinyHeatmap } from "@/components/tiny-heatmap"
 import { Sparkline } from "@/components/sparkline"
 import { DismissRemindersButton } from "@/components/dismiss-reminders-button"
+import { DraggableDashboardGoals } from "@/components/draggable-dashboard-goals"
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -46,7 +47,7 @@ export default async function DashboardPage() {
   const goals = await prisma.goal.findMany({
     where: { ownerId: user.id, active: true },
     include: { checkIns: true },
-    orderBy: { createdAt: "desc" },
+    orderBy: { sortOrder: "asc" },
   })
 
   const reminders = await prisma.reminder.findMany({
@@ -114,6 +115,25 @@ export default async function DashboardPage() {
       ? getSoftFailureMessage(consistency, recentCompletions, 30)
       : null
 
+    // Compute additional data for the draggable goals component
+    const weeklyTargetVal = goal.weeklyTarget ?? 1
+    const isWeekly = goal.cadenceType === "WEEKLY" && goal.weeklyTarget != null
+    const weekTarget = isWeekly ? weeklyTargetVal : 7
+    const weekProgress = Math.min(100, Math.round((checkInsThisWeek.length / weekTarget) * 100))
+    const last7Keys = Array.from({ length: 7 }).map((_, index) =>
+      getLocalDateKey(subDays(now, 6 - index), user.timezone)
+    )
+    const counts = last7Keys.map(
+      (key) => checkIns.filter((check) => check.localDateKey === key).length
+    )
+    const last14Keys = Array.from({ length: 14 }).map((_, index) =>
+      getLocalDateKey(subDays(now, 13 - index), user.timezone)
+    )
+    const sparkValues = last14Keys.map(
+      (key) => checkIns.filter((check) => check.localDateKey === key).length
+    )
+    const hasMultiTarget = dailyTarget > 1
+
     return {
       goal,
       todayDone,
@@ -126,6 +146,11 @@ export default async function DashboardPage() {
       consistency,
       gracefulStreak,
       weeklyStreak,
+      weekTarget,
+      weekProgress,
+      counts,
+      sparkValues,
+      hasMultiTarget,
       checkIns,
       softMessage,
     }
@@ -342,115 +367,27 @@ export default async function DashboardPage() {
         <div id="today" className="space-y-4">
           <h2 className="text-lg font-semibold">Today&apos;s Goals</h2>
           
-          {todayGoals.length === 0 ? (
-            <div className="rounded-xl border-2 border-dashed bg-muted/30 p-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                No goals yet.{" "}
-                <a href="/goals" className="text-primary font-medium hover:underline">
-                  Create your first goal
-                </a>{" "}
-                to start tracking.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-            {todayGoals.map(({ goal, todayDone, todayPartial, todayCount, dailyTarget, checkInsThisWeek, checkIns, consistency }) => {
-                const weeklyTarget = goal.weeklyTarget ?? 1
-                const isWeekly =
-                  goal.cadenceType === "WEEKLY" && goal.weeklyTarget != null
-                const weekTarget = isWeekly ? weeklyTarget : 7
-                const weekProgress = Math.min(
-                  100,
-                  Math.round((checkInsThisWeek.length / weekTarget) * 100)
-                )
-                const last7Keys = Array.from({ length: 7 }).map((_, index) =>
-                  getLocalDateKey(subDays(now, 6 - index), user.timezone)
-                )
-                const counts = last7Keys.map(
-                  (key) =>
-                    checkIns.filter((check) => check.localDateKey === key).length
-                )
-                const last14Keys = Array.from({ length: 14 }).map((_, index) =>
-                  getLocalDateKey(subDays(now, 13 - index), user.timezone)
-                )
-                const sparkValues = last14Keys.map(
-                  (key) =>
-                    checkIns.filter((check) => check.localDateKey === key).length
-                )
-                const hasMultiTarget = dailyTarget > 1
-
-                return (
-                  <div
-                    key={goal.id}
-                    className={`group rounded-xl border bg-card p-4 transition-all hover:shadow-md ${
-                      todayDone && !todayPartial ? "border-emerald-500/30 bg-emerald-500/5" : ""
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`h-2.5 w-2.5 rounded-full ${
-                              todayDone 
-                                ? todayPartial 
-                                  ? "bg-amber-500" 
-                                  : "bg-emerald-500" 
-                                : todayCount > 0
-                                  ? "bg-amber-500"
-                                  : "border-2 border-muted-foreground/30"
-                            }`}
-                          />
-                          <Link href={`/goals/${goal.id}`} className="font-medium hover:underline">
-                            {goal.name}
-                          </Link>
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                            {consistency}%
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span>
-                            {goal.cadenceType === "DAILY"
-                              ? hasMultiTarget 
-                                ? `${dailyTarget}x/day`
-                                : "Daily"
-                              : `${goal.weeklyTarget}x/week`}
-                          </span>
-                          <span>•</span>
-                          {hasMultiTarget && goal.cadenceType === "DAILY" && (
-                            <>
-                              <span className={todayCount >= dailyTarget ? "text-emerald-600" : ""}>
-                                {todayCount}/{dailyTarget} today
-                              </span>
-                              <span>•</span>
-                            </>
-                          )}
-                          <span>{checkInsThisWeek.length}/{weekTarget} this week</span>
-                        </div>
-                      </div>
-                      <CheckInButton
-                        goalId={goal.id}
-                        completed={todayDone}
-                        todayCount={todayCount}
-                        dailyTarget={dailyTarget}
-                      />
-                    </div>
-                    
-                    <div className="mt-3 space-y-2">
-                      <Progress value={weekProgress} className="h-1.5" />
-                      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <TinyHeatmap counts={counts} />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Sparkline values={sparkValues} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          <DraggableDashboardGoals 
+            goals={todayGoals.map(item => ({
+              goal: {
+                id: item.goal.id,
+                name: item.goal.name,
+                cadenceType: item.goal.cadenceType,
+                weeklyTarget: item.goal.weeklyTarget,
+              },
+              todayDone: item.todayDone,
+              todayPartial: item.todayPartial,
+              todayCount: item.todayCount,
+              dailyTarget: item.dailyTarget,
+              checkInsThisWeek: item.checkInsThisWeek.map(c => ({ id: c.id })),
+              consistency: item.consistency,
+              weekTarget: item.weekTarget,
+              weekProgress: item.weekProgress,
+              counts: item.counts,
+              sparkValues: item.sparkValues,
+              hasMultiTarget: item.hasMultiTarget,
+            }))}
+          />
         </div>
         
         {/* Progress Sidebar */}
