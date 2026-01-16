@@ -5,12 +5,10 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { getLocalDateKey, getWeekKey } from "@/lib/time"
 import {
-  computeDailyStreak,
   computeConsistencyPercentage,
   computeGracefulStreak,
   summarizeDailyCheckIns,
 } from "@/lib/scoring"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { GoalCreateForm } from "@/components/goal-create-form"

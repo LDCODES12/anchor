@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { subDays, format, startOfWeek, getDay } from "date-fns"
+import { subDays, format, getDay } from "date-fns"
 
 type DayData = {
   date: string // YYYY-MM-DD
@@ -67,22 +67,20 @@ export function MonthlyHeatmap({
 
   return (
     <div className={cn("space-y-1", className)}>
-      {/* Month labels */}
-      <div className="flex text-[10px] text-muted-foreground">
-        <div className="w-4" /> {/* Spacer for day labels */}
-        <div className="flex flex-1">
-          {monthPositions.map(({ label, weekIndex }) => (
-            <div
-              key={`${label}-${weekIndex}`}
-              className="text-left"
-              style={{
-                marginLeft: weekIndex === 0 ? 0 : `${(weekIndex - (monthPositions.findIndex(m => m.label === label && m.weekIndex === weekIndex) > 0 ? monthPositions[monthPositions.findIndex(m => m.label === label && m.weekIndex === weekIndex) - 1].weekIndex : 0) - 1) * 10}px`,
-                minWidth: "24px",
-              }}
-            >
-              {label}
-            </div>
-          ))}
+      {/* Month labels - simplified positioning */}
+      <div className="flex text-[10px] text-muted-foreground mb-1">
+        <div className="w-5 shrink-0" /> {/* Spacer for day labels */}
+        <div className="flex gap-0.5">
+          {weeks.map((week, weekIndex) => {
+            const firstDay = week[0]
+            const monthLabel = firstDay ? format(firstDay.date, "MMM") : ""
+            const showLabel = monthPositions.some(m => m.weekIndex === weekIndex)
+            return (
+              <div key={weekIndex} className="w-2 text-center">
+                {showLabel && <span className="whitespace-nowrap">{monthLabel}</span>}
+              </div>
+            )
+          })}
         </div>
       </div>
 

@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { getLocalDateKey, getWeekKey, getWeekStart } from "@/lib/time"
 import { formatInTimeZone } from "date-fns-tz"
-import { addDays, subDays } from "date-fns"
+import { subDays } from "date-fns"
 import {
   computeDailyStreak,
   computeBestDailyStreak,
@@ -19,7 +19,6 @@ import {
   summarizeWeeklyCheckIns,
 } from "@/lib/scoring"
 import { getBadges } from "@/lib/badges"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

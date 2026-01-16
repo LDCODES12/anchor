@@ -1,4 +1,4 @@
-import { format, getHours, subDays } from "date-fns"
+import { getHours, subDays } from "date-fns"
 
 type CheckInWithTime = {
   timestamp: Date
