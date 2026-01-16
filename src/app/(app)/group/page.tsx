@@ -92,7 +92,7 @@ export default async function GroupPage() {
     let totalPoints = 0
     let totalTarget = 0
     let totalCompleted = 0
-    let checkedInToday = false
+    let completedToday = false
 
     for (const goal of userGoals) {
       const checkIns = goal.checkIns.filter(
@@ -104,7 +104,7 @@ export default async function GroupPage() {
       const todayDone = checkIns.some(
         (check) => check.localDateKey === userTodayKey
       )
-      if (todayDone) checkedInToday = true
+      if (todayDone) completedToday = true
 
       const dailyStreak = computeDailyStreak(
         summarizeDailyCheckIns(checkIns),
@@ -135,7 +135,7 @@ export default async function GroupPage() {
       member,
       totalPoints,
       completionPct,
-      checkedInToday,
+      completedToday,
     }
   })
 
@@ -143,12 +143,12 @@ export default async function GroupPage() {
     (a, b) => b.totalPoints - a.totalPoints
   )
 
-  const nudges = sortedLeaderboard.filter((entry) => !entry.checkedInToday)
-  const pulseCheckedIn = sortedLeaderboard.filter((entry) => entry.checkedInToday).length
+  const nudges = sortedLeaderboard.filter((entry) => !entry.completedToday)
+  const pulseCompleted = sortedLeaderboard.filter((entry) => entry.completedToday).length
   const pulsePct =
     sortedLeaderboard.length === 0
       ? 0
-      : Math.round((pulseCheckedIn / sortedLeaderboard.length) * 100)
+      : Math.round((pulseCompleted / sortedLeaderboard.length) * 100)
 
   const baseUrl =
     process.env.NEXTAUTH_URL ?? "http://localhost:3000"
@@ -213,10 +213,10 @@ export default async function GroupPage() {
                     </TableCell>
                     <TableCell>{entry.totalPoints}</TableCell>
                     <TableCell>
-                      {entry.checkedInToday ? (
-                        <Badge variant="secondary">Checked in</Badge>
+                      {entry.completedToday ? (
+                        <Badge variant="secondary">Completed today</Badge>
                       ) : (
-                        <Badge variant="outline">Not yet</Badge>
+                        <Badge variant="outline">Not completed</Badge>
                       )}
                     </TableCell>
                   </TableRow>
@@ -233,13 +233,13 @@ export default async function GroupPage() {
           <CardContent className="space-y-4">
             <div className="rounded-xl border bg-background px-3 py-3 text-sm">
               <div className="flex items-center justify-between">
-                <span>Today&apos;s completions</span>
+                <span>Members active today</span>
                 <span className="font-medium">
-                  {pulseCheckedIn}/{sortedLeaderboard.length}
+                  {pulseCompleted}/{sortedLeaderboard.length}
                 </span>
               </div>
               <div className="mt-2 text-xs text-muted-foreground">
-                Quick snapshot of how everyone is doing today.
+                Quick snapshot of who has completed at least one goal today.
               </div>
             </div>
             <div className="grid gap-3 text-sm">
@@ -247,6 +247,7 @@ export default async function GroupPage() {
                 const completedCount = entry.goals.filter(
                   (goal) => goal.checkedToday
                 ).length
+                const totalGoals = entry.goals.length
                 return (
                   <div
                     key={entry.member.id}
@@ -255,7 +256,9 @@ export default async function GroupPage() {
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{entry.member.user.name}</span>
                       <span className="text-xs text-muted-foreground">
-                        {completedCount}/{entry.goals.length} today
+                        {totalGoals === 0
+                          ? "No goals"
+                          : `${completedCount}/${totalGoals} today`}
                       </span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
@@ -293,94 +296,6 @@ export default async function GroupPage() {
           </CardContent>
         </Card>
       </section>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Today’s snapshot</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {todaySnapshots.map((entry) => (
-            <div
-              key={entry.member.id}
-              className="rounded-2xl border bg-background p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">
-                  {entry.member.user.name}
-                </div>
-                <Badge variant="secondary">
-                  {entry.goals.filter((goal) => goal.checkedToday).length}/
-                  {entry.goals.length} completed
-                </Badge>
-              </div>
-              <div className="mt-3 grid gap-2 md:grid-cols-2">
-                {entry.goals.length === 0 ? (
-                  <div className="text-xs text-muted-foreground">
-                    No goals yet.
-                  </div>
-                ) : (
-                  entry.goals.map((goal) => (
-                    <div
-                      key={goal.goal.id}
-                      className="rounded-xl border px-3 py-2 text-xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{goal.goal.name}</span>
-                        <span className="flex items-center gap-2">
-                          <span
-                            className={`h-2.5 w-2.5 rounded-full ${
-                              goal.checkedToday
-                                ? "bg-emerald-500"
-                                : "bg-muted"
-                            }`}
-                          />
-                          <span className="text-muted-foreground">
-                            {goal.checkedToday ? "Done" : "Not yet"}
-                          </span>
-                        </span>
-                      </div>
-                      {goal.goal.cadenceType === "WEEKLY" &&
-                      goal.goal.weeklyTarget ? (
-                        <div className="mt-2 space-y-1">
-                          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                            <span>Weekly progress</span>
-                            <span>
-                              {Math.min(
-                                goal.weekCount,
-                                goal.goal.weeklyTarget
-                              )}
-                              /{goal.goal.weeklyTarget}
-                            </span>
-                          </div>
-                          <div className="h-1.5 w-full rounded-full bg-muted">
-                            <div
-                              className="h-1.5 rounded-full bg-primary"
-                              style={{
-                                width: `${Math.min(
-                                  100,
-                                  Math.round(
-                                    (goal.weekCount /
-                                      goal.goal.weeklyTarget) *
-                                      100
-                                  )
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="mt-2 text-[11px] text-muted-foreground">
-                          Daily goal · {goal.checkedToday ? "Completed" : "Due today"}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>

@@ -193,7 +193,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            Keep your goals on track with one‑tap check‑ins.
+            Keep your goals on track with one‑tap completions.
           </p>
         </div>
         <FocusModeToggle targetId="dashboard" />
