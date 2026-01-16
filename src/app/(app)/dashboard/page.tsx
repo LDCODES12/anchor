@@ -253,9 +253,10 @@ export default async function DashboardPage() {
               </div>
             ) : (
             todayGoals.map(({ goal, todayDone, checkInsThisWeek, checkIns }) => {
+                const weeklyTarget = goal.weeklyTarget ?? 1
                 const isWeekly =
-                  goal.cadenceType === "WEEKLY" && goal.weeklyTarget
-                const target = isWeekly ? goal.weeklyTarget : 1
+                  goal.cadenceType === "WEEKLY" && goal.weeklyTarget != null
+                const target = isWeekly ? weeklyTarget : 1
                 const displayCount = isWeekly
                   ? checkInsThisWeek.length
                   : todayDone
@@ -264,7 +265,7 @@ export default async function DashboardPage() {
                 const progress = isWeekly
                   ? Math.min(
                       100,
-                      Math.round((checkInsThisWeek.length / target) * 100)
+                      Math.round((checkInsThisWeek.length / weeklyTarget) * 100)
                     )
                   : todayDone
                   ? 100
