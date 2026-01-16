@@ -205,38 +205,42 @@ export default async function GroupPage() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>{group.name}</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Invite code: <span className="font-medium">{group.inviteCode}</span>
-            </p>
-          </div>
-          <Badge variant="outline">{group.members.length} members</Badge>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            {sortedLeaderboard.map((entry) => (
-              <div
-                key={entry.member.id}
-                className="flex flex-col items-center gap-2 rounded-2xl border bg-background p-4"
-              >
-                <div className="text-sm font-medium">
-                  {entry.member.user.name}
-                </div>
-                <CompletionRing
-                  value={entry.completionPct}
-                  label="Weekly completion"
-                />
-                <div className="text-xs text-muted-foreground">
-                  {entry.totalPoints} points
-                </div>
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{group.name}</h1>
+          <p className="text-sm text-muted-foreground">
+            {group.members.length} member{group.members.length !== 1 ? "s" : ""} • Code: <span className="font-medium text-foreground">{group.inviteCode}</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Leaderboard */}
+      <div className="rounded-2xl border bg-gradient-to-br from-card to-card/50 p-6">
+        <h2 className="text-lg font-semibold mb-4">Leaderboard</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {sortedLeaderboard.map((entry, index) => (
+            <div
+              key={entry.member.id}
+              className={`flex flex-col items-center gap-3 rounded-xl border bg-card p-4 ${
+                index === 0 ? "border-amber-500/30 bg-amber-500/5" : ""
+              }`}
+            >
+              {index === 0 && (
+                <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Top Performer</span>
+              )}
+              <div className="font-medium">{entry.member.user.name}</div>
+              <CompletionRing
+                value={entry.completionPct}
+                label="Weekly completion"
+              />
+              <div className="text-sm text-muted-foreground">
+                {entry.totalPoints} points
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <InviteLinkCard inviteUrl={inviteUrl} inviteCode={group.inviteCode} />
 

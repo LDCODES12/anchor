@@ -37,7 +37,7 @@ export default async function GoalsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Your goals</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Your Goals</h1>
         <p className="text-sm text-muted-foreground">
           Build small wins every day. Weekly targets help you stay flexible.
         </p>
@@ -45,17 +45,21 @@ export default async function GoalsPage() {
 
       <GoalCreateForm />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Active goals</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {goals.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              No goals yet. Create one above.
-            </div>
-          ) : (
-            goals.map((goal) => {
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Active Goals</h2>
+          <span className="text-sm text-muted-foreground">{goals.length} goal{goals.length !== 1 ? "s" : ""}</span>
+        </div>
+        
+        {goals.length === 0 ? (
+          <div className="rounded-xl border-2 border-dashed bg-muted/30 p-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              No goals yet. Create one above to start tracking.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {goals.map((goal) => {
               const checkIns = goal.checkIns.filter(
                 (check) => check.userId === user.id
               )
@@ -92,85 +96,76 @@ export default async function GoalsPage() {
               return (
                 <div
                   key={goal.id}
-                  className="rounded-2xl border bg-background p-4"
+                  className={`group rounded-xl border bg-card p-5 transition-all hover:shadow-md ${
+                    todayDone && !todayPartial ? "border-emerald-500/30 bg-emerald-500/5" : ""
+                  }`}
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
+                        <span
+                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                            todayDone 
+                              ? todayPartial 
+                                ? "bg-amber-500" 
+                                : "bg-emerald-500" 
+                              : "border-2 border-muted-foreground/30"
+                          }`}
+                        />
                         <Link
                           href={`/goals/${goal.id}`}
-                          className="text-base font-semibold"
+                          className="font-semibold truncate hover:underline"
                         >
                           {goal.name}
                         </Link>
-                        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0">
                           {consistency}%
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>
+                          {goal.cadenceType === "DAILY"
+                            ? "Daily"
+                            : `${goal.weeklyTarget}x/week`}
                         </span>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {goal.cadenceType === "DAILY"
-                          ? "Daily"
-                          : `Weekly target: ${goal.weeklyTarget}x`}
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <span>•</span>
                         <span>{gracefulStreak.currentStreak}d streak</span>
-                        {gracefulStreak.freezesUsed > 0 && (
-                          <span className="text-amber-500">
-                            ({gracefulStreak.freezesUsed} freeze)
-                          </span>
-                        )}
                         {gracefulStreak.isAtRisk && (
-                          <span className="text-amber-500">At risk!</span>
+                          <span className="text-amber-500">• At risk</span>
                         )}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!todayDone && goal.cadenceType === "DAILY" && (
-                        <CheckInButton
-                          goalId={goal.id}
-                          completed={false}
-                          label="Mini"
-                          isPartial={true}
-                        />
-                      )}
-                      <CheckInButton
-                        goalId={goal.id}
-                        completed={todayDone && !todayPartial}
-                        label={todayPartial ? "Upgrade" : "Complete"}
-                      />
                     </div>
                   </div>
+                  
                   <div className="mt-4 space-y-2">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>This week</span>
-                      <span>
-                        {weekCheckIns.length}/{weekTarget}
-                      </span>
+                      <span className="font-medium">{weekCheckIns.length}/{weekTarget}</span>
                     </div>
-                    <Progress value={weekProgress} />
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <span
-                        className={`h-2 w-2 rounded-full ${
-                          todayDone 
-                            ? todayPartial 
-                              ? "bg-amber-500" 
-                              : "bg-emerald-500" 
-                            : "bg-muted"
-                        }`}
+                    <Progress value={weekProgress} className="h-1.5" />
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-2">
+                    {!todayDone && goal.cadenceType === "DAILY" && (
+                      <CheckInButton
+                        goalId={goal.id}
+                        completed={false}
+                        label="Mini"
+                        isPartial={true}
                       />
-                      {todayDone 
-                        ? todayPartial 
-                          ? "Partial completion" 
-                          : "Completed today" 
-                        : "Not completed today"}
-                    </div>
+                    )}
+                    <CheckInButton
+                      goalId={goal.id}
+                      completed={todayDone && !todayPartial}
+                      label={todayPartial ? "Upgrade" : "Complete"}
+                    />
                   </div>
                 </div>
               )
-            })
-          )}
-        </CardContent>
-      </Card>
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -212,18 +212,10 @@ export default async function DashboardPage() {
 
   return (
     <div id="dashboard" className="space-y-6">
-      {!membership ? (
-        <div className="rounded-2xl border border-dashed bg-background px-6 py-4 text-sm text-muted-foreground">
-          You&apos;re not in a group yet.{" "}
-          <a href="/group" className="text-foreground underline">
-            Create or join one
-          </a>{" "}
-          when you&apos;re ready for accountability.
-        </div>
-      ) : null}
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
             Keep your goals on track with one‑tap completions.
           </p>
@@ -231,62 +223,87 @@ export default async function DashboardPage() {
         <FocusModeToggle targetId="dashboard" />
       </div>
 
+      {/* Alerts */}
+      {!membership ? (
+        <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 px-4 py-3 text-sm">
+          <span className="text-muted-foreground">You&apos;re flying solo. </span>
+          <a href="/group" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
+            Create or join a group
+          </a>
+          <span className="text-muted-foreground"> for accountability.</span>
+        </div>
+      ) : null}
+
       {hasMissingToday ? (
-        <div className="rounded-2xl border border-dashed bg-background px-6 py-4 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           You have goals waiting today. Even a quick check-in counts toward your consistency.
         </div>
       ) : null}
 
       <ReminderBanner reminders={reminderItems} />
 
-      <Card className="border bg-card/70 shadow-sm backdrop-blur" data-focus-hide="true">
-        <CardContent className="grid gap-4 p-6 md:grid-cols-[1.2fr_1fr] md:items-center">
-          <div className="space-y-3">
-            <div className="text-sm text-muted-foreground">Weekly score</div>
-            <div className="text-3xl font-semibold">{weeklyScore} points</div>
-            <div className="text-sm text-muted-foreground">{trendLabel}</div>
-            <div className="text-sm text-muted-foreground">
-              Best streak: {maxDailyStreak} days
+      {/* Hero Stats Card */}
+      <div className="rounded-2xl border bg-gradient-to-br from-card to-card/50 p-6 shadow-sm" data-focus-hide="true">
+        <div className="grid gap-6 md:grid-cols-[1.5fr_1fr] md:items-center">
+          <div className="space-y-4">
+            <div>
+              <div className="text-sm font-medium text-muted-foreground">This week</div>
+              <div className="mt-1 text-4xl font-bold tracking-tight">{weeklyScore} <span className="text-lg font-normal text-muted-foreground">points</span></div>
             </div>
+            
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className={`h-2 w-2 rounded-full ${trendLabel.includes("+") ? "bg-emerald-500" : trendLabel.includes("-") ? "bg-red-500" : "bg-muted"}`} />
+                <span className="text-muted-foreground">{trendLabel}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-primary" />
+                <span className="text-muted-foreground">Best: {maxDailyStreak} days</span>
+              </div>
+            </div>
+
             {pendingGoal ? (
-              <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <CheckInButton
                   goalId={pendingGoal.goal.id}
                   completed={pendingGoal.todayDone}
                   label={`Complete: ${pendingGoal.goal.name}`}
                 />
                 <span className="text-xs text-muted-foreground">
-                  One tap logs today&apos;s progress.
+                  One tap logs today&apos;s progress
                 </span>
               </div>
             ) : (
-              <div className="text-xs text-muted-foreground">
-                You&apos;re fully completed for today.
+              <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-sm text-emerald-600 dark:text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                All caught up for today
               </div>
             )}
           </div>
+          
           <div className="flex items-center justify-center">
             <CompletionRing value={streakProgress} label="Streak progress" />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <section className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <Card id="today">
-          <CardHeader>
-            <CardTitle>Today</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {todayGoals.length === 0 ? (
-              <div className="rounded-2xl border border-dashed bg-background p-4 text-sm text-muted-foreground">
+      <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+        <div id="today" className="space-y-4">
+          <h2 className="text-lg font-semibold">Today&apos;s Goals</h2>
+          
+          {todayGoals.length === 0 ? (
+            <div className="rounded-xl border-2 border-dashed bg-muted/30 p-6 text-center">
+              <p className="text-sm text-muted-foreground">
                 No goals yet.{" "}
-                <a href="/goals" className="text-foreground underline">
+                <a href="/goals" className="text-primary font-medium hover:underline">
                   Create your first goal
                 </a>{" "}
                 to start tracking.
-              </div>
-            ) : (
-            todayGoals.map(({ goal, todayDone, todayPartial, checkInsThisWeek, checkIns, consistency }) => {
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+            {todayGoals.map(({ goal, todayDone, todayPartial, checkInsThisWeek, checkIns, consistency }) => {
                 const weeklyTarget = goal.weeklyTarget ?? 1
                 const isWeekly =
                   goal.cadenceType === "WEEKLY" && goal.weeklyTarget != null
@@ -313,20 +330,35 @@ export default async function DashboardPage() {
                 return (
                   <div
                     key={goal.id}
-                    className="flex flex-col gap-3 rounded-2xl border bg-background p-4"
+                    className={`group rounded-xl border bg-card p-4 transition-all hover:shadow-md ${
+                      todayDone && !todayPartial ? "border-emerald-500/30 bg-emerald-500/5" : ""
+                    }`}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{goal.name}</span>
-                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full ${
+                              todayDone 
+                                ? todayPartial 
+                                  ? "bg-amber-500" 
+                                  : "bg-emerald-500" 
+                                : "border-2 border-muted-foreground/30"
+                            }`}
+                          />
+                          <span className="font-medium">{goal.name}</span>
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                             {consistency}%
-                          </span>
+                          </Badge>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {goal.cadenceType === "DAILY"
-                            ? "Daily"
-                            : `Weekly target: ${goal.weeklyTarget}x`}
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span>
+                            {goal.cadenceType === "DAILY"
+                              ? "Daily"
+                              : `${goal.weeklyTarget}x/week`}
+                          </span>
+                          <span>•</span>
+                          <span>{checkInsThisWeek.length}/{weekTarget} this week</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -345,61 +377,39 @@ export default async function DashboardPage() {
                         />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>This week</span>
-                        <span>
-                          {checkInsThisWeek.length}/{weekTarget}
-                        </span>
-                      </div>
-                      <Progress value={weekProgress} />
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span
-                          className={`h-2 w-2 rounded-full ${
-                            todayDone 
-                              ? todayPartial 
-                                ? "bg-amber-500" 
-                                : "bg-emerald-500" 
-                              : "bg-muted"
-                          }`}
-                        />
-                        {todayDone 
-                          ? todayPartial 
-                            ? "Partial completion" 
-                            : "Completed today" 
-                          : "Not completed today"}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <span>Last 7 days</span>
-                        <TinyHeatmap counts={counts} />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span>Streak history</span>
-                        <Sparkline values={sparkValues} />
+                    
+                    <div className="mt-3 space-y-2">
+                      <Progress value={weekProgress} className="h-1.5" />
+                      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <TinyHeatmap counts={counts} />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Sparkline values={sparkValues} />
+                        </div>
                       </div>
                     </div>
                   </div>
                 )
-              })
-            )}
-          </CardContent>
-        </Card>
-        <Card data-focus-hide="true">
-          <CardHeader>
-            <CardTitle>Progress</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {todayGoals.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
-                Progress will appear once you start completing goals.
-              </div>
-            ) : (
-              todayGoals.map(({ goal, dailyStreak, bestStreak, consistency, gracefulStreak, weeklyStreak, softMessage }) => (
+              })}
+            </div>
+          )}
+        </div>
+        
+        {/* Progress Sidebar */}
+        <div className="space-y-4" data-focus-hide="true">
+          <h2 className="text-lg font-semibold">Progress</h2>
+          
+          {todayGoals.length === 0 ? (
+            <div className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">
+              Progress will appear once you start completing goals.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {todayGoals.map(({ goal, dailyStreak, bestStreak, consistency, gracefulStreak, weeklyStreak, softMessage }) => (
                 <div
                   key={goal.id}
-                  className="rounded-xl border bg-background px-3 py-2 space-y-2"
+                  className="rounded-xl border bg-card p-4 space-y-3"
                 >
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-medium">{goal.name}</div>
@@ -431,28 +441,28 @@ export default async function DashboardPage() {
                     )}
                   </div>
                   {softMessage && (
-                    <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1">
+                    <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
                       {softMessage}
                     </div>
                   )}
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
-      <Card data-focus-hide="true">
-        <CardHeader>
-          <CardTitle>Weekly planning</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {todayGoals.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              Add goals to see your weekly plan.
-            </div>
-          ) : (
-            todayGoals.map(({ goal, checkInsThisWeek }) => {
+      {/* Weekly Planning */}
+      <div className="space-y-4" data-focus-hide="true">
+        <h2 className="text-lg font-semibold">Weekly Planning</h2>
+        
+        {todayGoals.length === 0 ? (
+          <div className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">
+            Add goals to see your weekly plan.
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {todayGoals.map(({ goal, checkInsThisWeek }) => {
               const weeklyTarget =
                 goal.cadenceType === "WEEKLY" && goal.weeklyTarget
                   ? goal.weeklyTarget
@@ -476,112 +486,110 @@ export default async function DashboardPage() {
               return (
                 <div
                   key={goal.id}
-                  className="rounded-2xl border bg-background p-4"
+                  className={`rounded-xl border bg-card p-4 ${
+                    atRisk ? "border-red-500/30" : onTrack ? "border-emerald-500/30" : ""
+                  }`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-medium">{goal.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {goal.cadenceType === "DAILY"
-                          ? "Daily"
-                          : `Weekly target: ${goal.weeklyTarget}x`}
-                      </div>
-                    </div>
-                    <Badge
-                      variant={onTrack ? "secondary" : "outline"}
-                      className={atRisk ? "bg-destructive/10 text-destructive" : ""}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium truncate">{goal.name}</span>
+                    <span
+                      className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${
+                        atRisk 
+                          ? "bg-red-500/10 text-red-600 dark:text-red-400" 
+                          : onTrack 
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" 
+                            : "bg-muted text-muted-foreground"
+                      }`}
                     >
                       {atRisk ? "At risk" : onTrack ? "On track" : "Behind"}
-                    </Badge>
+                    </span>
                   </div>
-                  <div className="mt-3 space-y-2">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Progress this week</span>
-                      <span>
-                        {checkInsThisWeek.length}/{weeklyTarget}
-                      </span>
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                      <span>{checkInsThisWeek.length}/{weeklyTarget}</span>
+                      <span>Target: {expectedByNow} by today</span>
                     </div>
-                    <Progress value={progress} />
-                    <div className="text-[11px] text-muted-foreground">
-                      Aim for {expectedByNow} by today
-                    </div>
+                    <Progress value={progress} className="h-1.5" />
                   </div>
                 </div>
               )
-            })
-          )}
-        </CardContent>
-      </Card>
+            })}
+          </div>
+        )}
+      </div>
 
-      <Card data-focus-hide="true">
-        <CardHeader>
-          <CardTitle>Badges</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          {badges.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              No badges yet. Your first completion unlocks one!
-            </div>
-          ) : (
-            badges.map((badge) => (
-              <Badge key={badge} variant="secondary">
+      {/* Badges */}
+      {badges.length > 0 && (
+        <div className="space-y-4" data-focus-hide="true">
+          <h2 className="text-lg font-semibold">Badges</h2>
+          <div className="flex flex-wrap gap-2">
+            {badges.map((badge) => (
+              <span 
+                key={badge} 
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary"
+              >
                 {badge}
-              </Badge>
-            ))
-          )}
-        </CardContent>
-      </Card>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
-      <section className="grid gap-4 lg:grid-cols-[2fr_1fr]" data-focus-hide="true">
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming reminders</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <div>
-              Next reminder:{" "}
-              <span className="text-foreground">{user.reminderTime}</span>
+      {/* Footer Grid */}
+      <div className="grid gap-4 md:grid-cols-2" data-focus-hide="true">
+        <div className="rounded-xl border bg-card p-5">
+          <h3 className="font-semibold mb-3">Reminders</h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Next reminder</span>
+              <span className="font-medium">{user.reminderTime}</span>
             </div>
-            <div>
-              Frequency: <span className="text-foreground">{reminderLabel}</span>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Frequency</span>
+              <span className="font-medium">{reminderLabel}</span>
             </div>
-            <div>
-              Best completion time:{" "}
-              <span className="text-foreground">{bestTimeLabel}</span>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Best time</span>
+              <span className="font-medium">{bestTimeLabel}</span>
             </div>
-            <div className="text-xs text-muted-foreground">
-              Push/email reminders are coming soon. We&apos;ll notify you when
-              they&apos;re ready.
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick links</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <Link href="/goals" className="block text-primary underline">
-              View all goals
+          </div>
+        </div>
+        
+        <div className="rounded-xl border bg-card p-5">
+          <h3 className="font-semibold mb-3">Quick Links</h3>
+          <div className="flex flex-wrap gap-2">
+            <Link 
+              href="/goals" 
+              className="inline-flex items-center rounded-lg bg-muted px-3 py-1.5 text-sm hover:bg-muted/80 transition-colors"
+            >
+              All goals
             </Link>
-            <Link href="/group" className="block text-primary underline">
-              Group dashboard
+            <Link 
+              href="/group" 
+              className="inline-flex items-center rounded-lg bg-muted px-3 py-1.5 text-sm hover:bg-muted/80 transition-colors"
+            >
+              Group
             </Link>
-            <Link href="/settings" className="block text-primary underline">
-              Update settings
+            <Link 
+              href="/settings" 
+              className="inline-flex items-center rounded-lg bg-muted px-3 py-1.5 text-sm hover:bg-muted/80 transition-colors"
+            >
+              Settings
             </Link>
-          </CardContent>
-        </Card>
-      </section>
+          </div>
+        </div>
+      </div>
 
+      {/* Mobile CTA */}
       {pendingGoal ? (
-        <div className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-3rem)] -translate-x-1/2 rounded-2xl border bg-background/90 p-3 shadow-lg backdrop-blur md:hidden">
-          <div className="flex items-center justify-between gap-3 text-sm">
+        <div className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl border bg-background/95 p-3 shadow-xl backdrop-blur-sm md:hidden">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-xs text-muted-foreground">Complete now</div>
-              <div className="text-sm font-medium">{pendingGoal.goal.name}</div>
+              <div className="text-xs text-muted-foreground">Next up</div>
+              <div className="font-medium">{pendingGoal.goal.name}</div>
             </div>
-            <Button asChild>
-              <a href="#today">Go</a>
+            <Button asChild size="sm">
+              <a href="#today">Complete</a>
             </Button>
           </div>
         </div>
