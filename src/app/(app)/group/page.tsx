@@ -272,7 +272,7 @@ export default async function GroupPage() {
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                   pending
                 </span>
-                <span className="tabular-nums">{pulseCompleted}/{sortedLeaderboard.length} active</span>
+                <span className="tabular-nums">{pulseCompleted}/{sortedLeaderboard.length} active today</span>
               </div>
             </div>
 

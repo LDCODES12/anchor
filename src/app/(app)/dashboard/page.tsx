@@ -468,51 +468,57 @@ export default async function DashboardPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {todayGoals.map(({ goal, checkInsThisWeek }) => {
-              const weeklyTarget =
-                goal.cadenceType === "WEEKLY" && goal.weeklyTarget
-                  ? goal.weeklyTarget
-                  : 7
-              const expectedByNow =
-                goal.cadenceType === "WEEKLY" && goal.weeklyTarget
-                  ? Math.ceil((goal.weeklyTarget * daysElapsed) / 7)
-                  : daysElapsed
-              const onTrack = checkInsThisWeek.length >= expectedByNow
-              const remainingRequired = Math.max(
-                0,
-                weeklyTarget - checkInsThisWeek.length
-              )
+              const isWeeklyGoal = goal.cadenceType === "WEEKLY" && goal.weeklyTarget != null
+              const weeklyTarget = isWeeklyGoal ? goal.weeklyTarget! : 7
+              const done = checkInsThisWeek.length
+              const remainingRequired = Math.max(0, weeklyTarget - done)
               const remainingDays = Math.max(0, 7 - daysElapsed)
-              const atRisk = remainingRequired > remainingDays
-              const progress = Math.min(
-                100,
-                Math.round((checkInsThisWeek.length / weeklyTarget) * 100)
-              )
+              const progress = Math.min(100, Math.round((done / weeklyTarget) * 100))
+              
+              // For daily goals: compare to days elapsed
+              // For weekly goals: check if you can still hit target
+              const missedDays = isWeeklyGoal ? 0 : Math.max(0, daysElapsed - done)
+              const canStillComplete = remainingRequired <= remainingDays
+              const isComplete = done >= weeklyTarget
+              const isPerfect = isWeeklyGoal 
+                ? done >= Math.ceil((weeklyTarget * daysElapsed) / 7)
+                : done >= daysElapsed
+
+              // Status label logic
+              let statusLabel: string
+              let statusStyle: string
+              
+              if (isComplete) {
+                statusLabel = "Complete"
+                statusStyle = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              } else if (isPerfect) {
+                statusLabel = "On track"
+                statusStyle = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              } else if (!canStillComplete) {
+                statusLabel = isWeeklyGoal ? "Will miss" : `${missedDays}d missed`
+                statusStyle = "bg-red-500/10 text-red-600 dark:text-red-400"
+              } else {
+                statusLabel = isWeeklyGoal ? "Can finish" : `${missedDays}d missed`
+                statusStyle = "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              }
 
               return (
                 <div
                   key={goal.id}
                   className={`rounded-xl border bg-card p-4 ${
-                    atRisk ? "border-red-500/30" : onTrack ? "border-emerald-500/30" : ""
+                    isComplete || isPerfect ? "border-emerald-500/30" : !canStillComplete ? "border-red-500/30" : ""
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium truncate">{goal.name}</span>
-                    <span
-                      className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${
-                        atRisk 
-                          ? "bg-red-500/10 text-red-600 dark:text-red-400" 
-                          : onTrack 
-                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" 
-                            : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {atRisk ? "At risk" : onTrack ? "On track" : "Behind"}
+                    <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${statusStyle}`}>
+                      {statusLabel}
                     </span>
                   </div>
                   <div className="mt-3">
                     <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                      <span>{checkInsThisWeek.length} of {weeklyTarget} this week</span>
-                      <span>{remainingRequired > 0 ? `${remainingRequired} left` : "Complete!"}</span>
+                      <span>{done}/{weeklyTarget} {isWeeklyGoal ? "this week" : "days"}</span>
+                      <span>{remainingRequired > 0 ? `${remainingRequired} left` : "Done!"}</span>
                     </div>
                     <Progress value={progress} className="h-1.5" />
                   </div>
