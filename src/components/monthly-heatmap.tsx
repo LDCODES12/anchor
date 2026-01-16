@@ -64,21 +64,17 @@ export function MonthlyHeatmap({
 
   return (
     <div className={cn("inline-block", className)}>
-      {/* Month labels */}
-      <div className="flex text-[10px] text-muted-foreground mb-1">
-        <div style={{ width: 18 }} /> {/* Spacer for day labels */}
-        {grid.map((_, weekIndex) => {
-          const monthLabel = monthLabels.find(m => m.weekIndex === weekIndex)
-          return (
-            <div 
-              key={weekIndex} 
-              style={{ width: cellSize, marginRight: gap }}
-              className="text-center"
-            >
-              {monthLabel ? monthLabel.label : ""}
-            </div>
-          )
-        })}
+      {/* Month labels - absolutely positioned */}
+      <div className="relative h-4 mb-1" style={{ marginLeft: 18 }}>
+        {monthLabels.map(({ label, weekIndex }) => (
+          <span
+            key={`${label}-${weekIndex}`}
+            className="absolute text-[10px] text-muted-foreground whitespace-nowrap"
+            style={{ left: weekIndex * (cellSize + gap) }}
+          >
+            {label}
+          </span>
+        ))}
       </div>
 
       {/* Grid */}
