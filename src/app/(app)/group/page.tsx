@@ -62,7 +62,14 @@ export default async function GroupPage() {
 
   const recentCheckIns = await prisma.checkIn.findMany({
     where: { goal: { groupId: group.id } },
-    include: { user: true, goal: true },
+    include: { 
+      user: true, 
+      goal: true,
+      cheers: {
+        where: { senderId: session.user.id },
+        select: { id: true },
+      },
+    },
     orderBy: { timestamp: "desc" },
     take: 8,
   })
@@ -447,27 +454,38 @@ export default async function GroupPage() {
                   No completions yet.
                 </div>
               ) : (
-                recentCheckIns.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between px-3 py-1.5 text-xs"
-                  >
-                    <span>
-                      <span className="text-muted-foreground">{item.user.name}</span>
-                      {" · "}
-                      <span className="font-medium">{item.goal.name}</span>
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <CheerButton name={item.user.name} />
-                      <span className="text-[10px] text-muted-foreground tabular-nums">
-                        {item.timestamp.toLocaleTimeString([], {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
+                recentCheckIns.map((item) => {
+                  const hasCheered = item.cheers.length > 0
+                  const isOwnCheckIn = item.userId === session.user.id
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between px-3 py-1.5 text-xs"
+                    >
+                      <span>
+                        <span className="text-muted-foreground">{item.user.name}</span>
+                        {" · "}
+                        <span className="font-medium">{item.goal.name}</span>
                       </span>
+                      <div className="flex items-center gap-2">
+                        {!isOwnCheckIn && (
+                          <CheerButton 
+                            checkInId={item.id}
+                            userName={item.user.name}
+                            hasCheered={hasCheered}
+                          />
+                        )}
+                        <span className="text-[10px] text-muted-foreground tabular-nums">
+                          {item.timestamp.toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </div>

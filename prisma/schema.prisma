@@ -34,6 +34,7 @@ model User {
   checkIns CheckIn[]
   sentReminders     Reminder[] @relation("SentReminders")
   receivedReminders Reminder[] @relation("ReceivedReminders")
+  cheers   Cheer[]
 
   accounts Account[]
   sessions Session[]
@@ -98,10 +99,13 @@ model CheckIn {
   weekKey      String
   isPartial    Boolean  @default(false)  // Partial/mini completion
 
-  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal   Goal    @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cheers Cheer[]
 
-  @@unique([goalId, userId, localDateKey])
+  // Note: No unique constraint on (goalId, userId, localDateKey) to allow 
+  // multiple check-ins per day for multi-target goals (e.g., "drink water 8x/day")
+  @@index([goalId, userId, localDateKey])
   @@index([goalId, userId, weekKey])
   @@index([userId, weekKey])
 }
@@ -121,6 +125,19 @@ model Reminder {
 
   @@index([recipientId, readAt])
   @@index([groupId, createdAt])
+}
+
+model Cheer {
+  id          String   @id @default(cuid())
+  checkInId   String
+  senderId    String
+  createdAt   DateTime @default(now())
+
+  checkIn   CheckIn @relation(fields: [checkInId], references: [id], onDelete: Cascade)
+  sender    User    @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@unique([checkInId, senderId])  // One cheer per person per check-in
+  @@index([checkInId])
 }
 
 model Account {
