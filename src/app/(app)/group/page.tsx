@@ -2,21 +2,24 @@ import { getServerSession } from "next-auth"
 import { redirect } from "next/navigation"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
-import { getLocalDateKey, getWeekKey } from "@/lib/time"
+import { getLocalDateKey, getWeekKey, getWeekStart } from "@/lib/time"
 import {
   computeDailyStreak,
+  computeWeeklyStreak,
   computeWeeklyPoints,
   summarizeDailyCheckIns,
+  summarizeWeeklyCheckIns,
 } from "@/lib/scoring"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { CompletionRing } from "@/components/completion-ring"
 import { CheerButton } from "@/components/cheer-button"
 import { RemindButton } from "@/components/remind-button"
 import { GroupSetup } from "@/components/group-setup"
 import { InviteLinkCard } from "@/components/invite-link-card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CheckCircle2, AlertCircle } from "lucide-react"
 
 export default async function GroupPage() {
   const session = await getServerSession(authOptions)
@@ -65,6 +68,7 @@ export default async function GroupPage() {
     const userGoals = goals.filter((goal) => goal.ownerId === member.userId)
     const todayKey = getLocalDateKey(new Date(), member.user.timezone)
     const weekKey = getWeekKey(new Date(), member.user.timezone)
+    const weekStart = getWeekStart(new Date(), member.user.timezone)
 
     return {
       member,
@@ -77,10 +81,28 @@ export default async function GroupPage() {
         )
         const weekCount = checkIns.filter((check) => check.weekKey === weekKey)
           .length
+
+        // Compute streaks
+        const dailyStreak = computeDailyStreak(
+          summarizeDailyCheckIns(checkIns),
+          todayKey
+        )
+        const weeklyStreak =
+          goal.cadenceType === "WEEKLY" && goal.weeklyTarget
+            ? computeWeeklyStreak(
+                summarizeWeeklyCheckIns(checkIns),
+                weekStart,
+                member.user.timezone,
+                goal.weeklyTarget
+              )
+            : 0
+
         return {
           goal,
           checkedToday,
           weekCount,
+          dailyStreak,
+          weeklyStreak,
         }
       }),
     }
@@ -209,88 +231,140 @@ export default async function GroupPage() {
                   Quick snapshot of who has completed at least one goal today.
                 </div>
               </div>
-              <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500/70" />
-                  Completed today
+              <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  Completed
                 </span>
-                <span className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-amber-500/70" />
-                  Due today
+                <span className="flex items-center gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                  Daily - needs attention
                 </span>
-                <span className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-muted" />
-                  Weekly / not due today
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-6 rounded-full bg-primary/20" />
+                  Weekly progress
                 </span>
               </div>
-              <div className="grid gap-3 text-sm">
+              <div className="grid gap-4 text-sm">
                 {todaySnapshots.map((entry) => {
-                  const completedCount = entry.goals.filter(
-                    (goal) => goal.checkedToday
-                  ).length
-                  const totalGoals = entry.goals.length
-                  const needsReminder = entry.goals.some(
-                    (goal) =>
-                      goal.goal.cadenceType === "DAILY" && !goal.checkedToday
+                  const dailyGoals = entry.goals.filter(
+                    (g) => g.goal.cadenceType === "DAILY"
                   )
+                  const weeklyGoals = entry.goals.filter(
+                    (g) => g.goal.cadenceType === "WEEKLY"
+                  )
+                  const dailyCompleted = dailyGoals.filter(
+                    (g) => g.checkedToday
+                  ).length
+                  const needsReminder = dailyGoals.some((g) => !g.checkedToday)
 
                   return (
                     <div
                       key={entry.member.id}
-                      className="rounded-xl border bg-background px-3 py-2"
+                      className="rounded-xl border bg-background overflow-hidden"
                     >
-                      <div className="flex items-center justify-between">
+                      {/* Header */}
+                      <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
                         <span className="font-medium">
                           {entry.member.user.name}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {totalGoals === 0
-                            ? "No goals"
-                            : `${completedCount} completed`}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {entry.goals.length === 0 ? (
-                          <span className="text-muted-foreground">
-                            No goals yet.
+                        {dailyGoals.length > 0 ? (
+                          <span className="text-xs text-muted-foreground">
+                            {dailyCompleted}/{dailyGoals.length} daily done
                           </span>
-                        ) : (
-                          entry.goals.slice(0, 12).map((goal) => {
-                            const isDaily = goal.goal.cadenceType === "DAILY"
-                            const className = goal.checkedToday
-                              ? "bg-emerald-500/70"
-                              : isDaily
-                              ? "bg-amber-500/70"
-                              : "bg-muted"
-                            const label = goal.checkedToday
-                              ? "Completed today"
-                              : isDaily
-                              ? "Due today"
-                              : "Weekly / not due today"
-
-                            return (
-                              <span
-                                key={goal.goal.id}
-                                className={`h-4 w-4 rounded-sm ${className}`}
-                                title={`${goal.goal.name} — ${label}`}
-                              />
-                            )
-                          })
-                        )}
-                        {entry.goals.length > 12 ? (
-                          <span className="rounded-sm bg-muted px-2 py-1 text-[11px] text-muted-foreground">
-                            +{entry.goals.length - 12} more
+                        ) : entry.goals.length === 0 ? (
+                          <span className="text-xs text-muted-foreground">
+                            No goals
                           </span>
                         ) : null}
                       </div>
-                      {needsReminder && entry.member.user.id !== session.user.id ? (
-                        <div className="mt-2">
+
+                      {entry.goals.length === 0 ? (
+                        <div className="px-4 py-3 text-muted-foreground text-sm">
+                          No goals yet.
+                        </div>
+                      ) : (
+                        <div className="px-4 py-3 space-y-4">
+                          {/* Daily Goals Section */}
+                          {dailyGoals.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                Required Today
+                              </div>
+                              <div className="space-y-1.5">
+                                {dailyGoals.map((g) => (
+                                  <div
+                                    key={g.goal.id}
+                                    className="flex items-center justify-between"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {g.checkedToday ? (
+                                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                      ) : (
+                                        <AlertCircle className="h-4 w-4 text-amber-500" />
+                                      )}
+                                      <span className={g.checkedToday ? "text-muted-foreground" : ""}>
+                                        {g.goal.name}
+                                      </span>
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                      {g.checkedToday ? "Done" : "Pending"}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Weekly Goals Section */}
+                          {weeklyGoals.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                Weekly Progress
+                              </div>
+                              <div className="space-y-2.5">
+                                {weeklyGoals.map((g) => {
+                                  const target = g.goal.weeklyTarget ?? 1
+                                  const progress = Math.min(
+                                    100,
+                                    Math.round((g.weekCount / target) * 100)
+                                  )
+                                  const isComplete = g.weekCount >= target
+
+                                  return (
+                                    <div key={g.goal.id} className="space-y-1">
+                                      <div className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-2">
+                                          {isComplete && (
+                                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                          )}
+                                          <span className={isComplete ? "text-muted-foreground" : ""}>
+                                            {g.goal.name}
+                                          </span>
+                                        </div>
+                                        <span className="text-xs text-muted-foreground">
+                                          {g.weekCount}/{target} this week
+                                        </span>
+                                      </div>
+                                      <Progress value={progress} className="h-1.5" />
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Remind button */}
+                      {needsReminder && entry.member.user.id !== session.user.id && (
+                        <div className="px-4 py-2 border-t bg-muted/20">
                           <RemindButton
                             recipientId={entry.member.user.id}
                             recipientName={entry.member.user.name}
                           />
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   )
                 })}
@@ -299,39 +373,108 @@ export default async function GroupPage() {
           </Card>
         </TabsContent>
         <TabsContent value="details" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Leaderboard</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Member</TableHead>
-                    <TableHead>Points</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedLeaderboard.map((entry, index) => (
-                    <TableRow key={entry.member.id}>
-                      <TableCell>
-                        {index + 1}. {entry.member.user.name}
-                      </TableCell>
-                      <TableCell>{entry.totalPoints}</TableCell>
-                      <TableCell>
-                        {entry.completedToday ? (
-                          <Badge variant="secondary">Completed today</Badge>
-                        ) : (
-                          <Badge variant="outline">Not completed</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          {/* Member Goal Profiles */}
+          {todaySnapshots.map((entry) => {
+            const leaderboardEntry = sortedLeaderboard.find(
+              (l) => l.member.id === entry.member.id
+            )
+            const rank = sortedLeaderboard.findIndex(
+              (l) => l.member.id === entry.member.id
+            ) + 1
+            const joinDate = new Date(entry.member.joinedAt).toLocaleDateString(
+              "en-US",
+              { month: "short", year: "numeric" }
+            )
+
+            return (
+              <Card key={entry.member.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">
+                        {entry.member.user.name}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Member since {joinDate}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-semibold">
+                        {leaderboardEntry?.totalPoints ?? 0}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        points this week · #{rank}
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {entry.goals.length === 0 ? (
+                    <div className="text-sm text-muted-foreground py-2">
+                      No goals yet.
+                    </div>
+                  ) : (
+                    entry.goals.map((g) => {
+                      const isDaily = g.goal.cadenceType === "DAILY"
+                      const target = isDaily ? 7 : (g.goal.weeklyTarget ?? 1)
+                      const progress = Math.min(
+                        100,
+                        Math.round((g.weekCount / target) * 100)
+                      )
+                      const streak = isDaily ? g.dailyStreak : g.weeklyStreak
+                      const streakLabel = isDaily
+                        ? `${streak} day${streak !== 1 ? "s" : ""}`
+                        : `${streak} week${streak !== 1 ? "s" : ""}`
+
+                      return (
+                        <div
+                          key={g.goal.id}
+                          className="rounded-xl border bg-background p-4"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <div className="font-medium">{g.goal.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {isDaily
+                                  ? "Daily"
+                                  : `${g.goal.weeklyTarget}x per week`}
+                              </div>
+                            </div>
+                            {streak > 0 && (
+                              <Badge variant="secondary">
+                                {streakLabel} streak
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm text-muted-foreground">
+                              <span>This week</span>
+                              <span>
+                                {g.weekCount}/{target}
+                              </span>
+                            </div>
+                            <Progress value={progress} className="h-2" />
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span
+                                className={`h-2 w-2 rounded-full ${
+                                  g.checkedToday ? "bg-emerald-500" : "bg-muted"
+                                }`}
+                              />
+                              {g.checkedToday
+                                ? "Completed today"
+                                : "Not completed today"}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+
+          {/* Recent Activity */}
           <Card>
             <CardHeader>
               <CardTitle>Recent activity</CardTitle>
