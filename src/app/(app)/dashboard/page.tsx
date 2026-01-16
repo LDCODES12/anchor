@@ -511,8 +511,8 @@ export default async function DashboardPage() {
                   </div>
                   <div className="mt-3">
                     <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                      <span>{checkInsThisWeek.length}/{weeklyTarget}</span>
-                      <span>Target: {expectedByNow} by today</span>
+                      <span>{checkInsThisWeek.length} of {weeklyTarget} this week</span>
+                      <span>{remainingRequired > 0 ? `${remainingRequired} left` : "Complete!"}</span>
                     </div>
                     <Progress value={progress} className="h-1.5" />
                   </div>
