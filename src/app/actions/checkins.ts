@@ -2,8 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { getServerSession } from "next-auth"
-import { parseISO, startOfDay, isBefore, isAfter, addHours } from "date-fns"
-import { toZonedTime } from "date-fns-tz"
+import { parseISO } from "date-fns"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { checkInSchema } from "@/lib/validators"
@@ -234,8 +233,11 @@ export async function logHistoricalCheckInAction({
   // Get the week key for the target date
   const weekKey = getWeekKey(targetDate, user.timezone)
 
-  // Create a timestamp at noon on the target date (avoids timezone edge cases)
-  const timestamp = addHours(startOfDay(targetDate), 12)
+  // Create a timestamp at noon on the target date (in user's timezone)
+  // Parse the date string and add 12 hours to get noon
+  // The date string is already in YYYY-MM-DD format, so we create a Date at noon UTC
+  // and that will be stored consistently regardless of server timezone
+  const timestamp = new Date(`${date}T12:00:00Z`)
 
   // Get existing check-ins for this date
   const existingCheckIns = await prisma.checkIn.findMany({
