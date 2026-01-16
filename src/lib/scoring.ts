@@ -248,11 +248,16 @@ export function computeGracefulStreak(
   }
 
   // Iterate through days
+  let pendingFreezes = 0 // Freezes that might be used if we find more streak days
+  
   for (let i = 0; i < 365; i++) {
     const dateKey = getDateKeyDaysAgo(i, todayKey, timeZone)
     
     if (isDayComplete(counts, dateKey, target)) {
       streak++
+      // Only count pending freezes if they actually connected to a streak day
+      freezesUsed += pendingFreezes
+      pendingFreezes = 0
       consecutiveMisses = 0
     } else {
       consecutiveMisses++
@@ -260,8 +265,8 @@ export function computeGracefulStreak(
         // Too many consecutive misses - streak ends here
         break
       }
-      // Use a freeze
-      freezesUsed++
+      // This is a potential freeze (only counts if followed by a completed day)
+      pendingFreezes++
     }
   }
 
