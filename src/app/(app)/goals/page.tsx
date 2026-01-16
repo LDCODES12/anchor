@@ -63,9 +63,10 @@ export default async function GoalsPage() {
               const weekCheckIns = checkIns.filter(
                 (check) => check.weekKey === weekKey
               )
+              const weeklyTarget = goal.weeklyTarget ?? 1
               const isWeekly =
-                goal.cadenceType === "WEEKLY" && goal.weeklyTarget
-              const target = isWeekly ? goal.weeklyTarget : 1
+                goal.cadenceType === "WEEKLY" && goal.weeklyTarget != null
+              const target = isWeekly ? weeklyTarget : 1
               const displayCount = isWeekly
                 ? weekCheckIns.length
                 : todayDone
@@ -74,7 +75,7 @@ export default async function GoalsPage() {
               const progress = isWeekly
                 ? Math.min(
                     100,
-                    Math.round((weekCheckIns.length / target) * 100)
+                    Math.round((weekCheckIns.length / weeklyTarget) * 100)
                   )
                 : todayDone
                 ? 100
