@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { createGoalAction } from "@/app/actions/goals"
@@ -21,6 +21,7 @@ export function GoalCreateForm() {
   const [cadenceType, setCadenceType] = useState("DAILY")
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
+  const formRef = useRef<HTMLFormElement | null>(null)
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -33,7 +34,7 @@ export function GoalCreateForm() {
         return
       }
       toast.success("Goal created!")
-      event.currentTarget.reset()
+      formRef.current?.reset()
       setCadenceType("DAILY")
       router.refresh()
     })
@@ -45,7 +46,7 @@ export function GoalCreateForm() {
         <CardTitle>Create a goal</CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form ref={formRef} className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <Label htmlFor="name">Goal name</Label>
             <Input
