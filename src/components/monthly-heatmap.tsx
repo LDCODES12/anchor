@@ -46,16 +46,25 @@ export function MonthlyHeatmap({
   // Find max count for intensity scaling
   const maxCount = Math.max(1, ...data.map((d) => d.count))
 
-  // Get month labels - show at the start of each month
-  const monthLabels: { label: string; weekIndex: number }[] = []
+  // Get month labels - show at the start of each month, but skip if too close to previous
+  const allMonthLabels: { label: string; weekIndex: number }[] = []
   let lastMonth = -1
   grid.forEach((week, weekIndex) => {
-    // Check the first day of this week
     const firstDay = week[0]
     const month = firstDay.date.getMonth()
     if (month !== lastMonth) {
-      monthLabels.push({ label: format(firstDay.date, "MMM"), weekIndex })
+      allMonthLabels.push({ label: format(firstDay.date, "MMM"), weekIndex })
       lastMonth = month
+    }
+  })
+  
+  // Filter out labels that would overlap (need at least 3 columns between labels)
+  const minColumnGap = 3
+  const monthLabels: typeof allMonthLabels = []
+  allMonthLabels.forEach((label) => {
+    const prevLabel = monthLabels[monthLabels.length - 1]
+    if (!prevLabel || label.weekIndex - prevLabel.weekIndex >= minColumnGap) {
+      monthLabels.push(label)
     }
   })
 
