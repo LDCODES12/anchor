@@ -360,3 +360,140 @@ export async function deleteHistoricalCheckInAction({
 
   return { ok: true }
 }
+
+/**
+ * Bulk log historical check-ins for multiple dates at once
+ * Efficiently handles date ranges, patterns, and streaks
+ */
+export async function bulkLogHistoricalAction({
+  goalId,
+  dates,
+  countPerDay,
+  mode = "set",
+}: {
+  goalId: string
+  dates: string[] // Array of YYYY-MM-DD strings
+  countPerDay: number // Completions per day
+  mode?: "set" | "add" // "set" replaces existing, "add" adds to existing
+}) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return { ok: false, error: "Unauthorized" }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+  })
+  if (!user) return { ok: false, error: "User not found." }
+
+  const goal = await prisma.goal.findFirst({
+    where: {
+      id: goalId,
+      ownerId: session.user.id,
+    },
+  })
+  if (!goal) return { ok: false, error: "Goal not found or not yours." }
+
+  // Validate
+  if (dates.length === 0) {
+    return { ok: false, error: "No dates provided." }
+  }
+  if (dates.length > 365) {
+    return { ok: false, error: "Maximum 365 days per operation." }
+  }
+
+  const dailyTarget = goal.dailyTarget ?? 1
+  if (countPerDay < 0 || countPerDay > dailyTarget) {
+    return { ok: false, error: `Count must be between 0 and ${dailyTarget}.` }
+  }
+
+  // Validate all dates are in the past
+  const todayKey = getLocalDateKey(new Date(), user.timezone)
+  const invalidDates = dates.filter((d) => d >= todayKey)
+  if (invalidDates.length > 0) {
+    return { ok: false, error: "All dates must be in the past." }
+  }
+
+  // Fetch existing check-ins for all dates in one query
+  const existingCheckIns = await prisma.checkIn.findMany({
+    where: {
+      goalId: goal.id,
+      userId: session.user.id,
+      localDateKey: { in: dates },
+    },
+    select: { id: true, localDateKey: true },
+  })
+
+  // Group existing check-ins by date
+  const existingByDate: Record<string, string[]> = {}
+  for (const checkIn of existingCheckIns) {
+    if (!existingByDate[checkIn.localDateKey]) {
+      existingByDate[checkIn.localDateKey] = []
+    }
+    existingByDate[checkIn.localDateKey].push(checkIn.id)
+  }
+
+  // Calculate changes needed
+  const toCreate: { localDateKey: string; weekKey: string; timestamp: Date }[] = []
+  const toDelete: string[] = []
+
+  for (const date of dates) {
+    const existing = existingByDate[date] ?? []
+    const existingCount = existing.length
+
+    let targetCount: number
+    if (mode === "set") {
+      targetCount = countPerDay
+    } else {
+      // "add" mode - add to existing, cap at dailyTarget
+      targetCount = Math.min(existingCount + countPerDay, dailyTarget)
+    }
+
+    if (targetCount > existingCount) {
+      // Need to add check-ins
+      const toAdd = targetCount - existingCount
+      const targetDate = parseISO(date)
+      const weekKey = getWeekKey(targetDate, user.timezone)
+      const timestamp = new Date(`${date}T12:00:00Z`)
+      
+      for (let i = 0; i < toAdd; i++) {
+        toCreate.push({ localDateKey: date, weekKey, timestamp })
+      }
+    } else if (targetCount < existingCount) {
+      // Need to remove check-ins
+      const toRemove = existingCount - targetCount
+      toDelete.push(...existing.slice(0, toRemove))
+    }
+  }
+
+  // Execute changes in a transaction
+  await prisma.$transaction(async (tx) => {
+    if (toDelete.length > 0) {
+      await tx.checkIn.deleteMany({
+        where: { id: { in: toDelete } },
+      })
+    }
+    if (toCreate.length > 0) {
+      await tx.checkIn.createMany({
+        data: toCreate.map((c) => ({
+          goalId: goal.id,
+          userId: session.user.id,
+          timestamp: c.timestamp,
+          localDateKey: c.localDateKey,
+          weekKey: c.weekKey,
+          isPartial: false,
+        })),
+      })
+    }
+  })
+
+  revalidatePath("/dashboard")
+  revalidatePath("/group")
+  revalidatePath("/goals")
+  revalidatePath(`/goals/${goal.id}`)
+
+  return {
+    ok: true,
+    daysAffected: dates.length,
+    checkInsCreated: toCreate.length,
+    checkInsDeleted: toDelete.length,
+  }
+}
