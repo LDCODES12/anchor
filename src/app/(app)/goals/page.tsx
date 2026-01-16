@@ -105,7 +105,9 @@ export default async function GoalsPage() {
                   </div>
                   <div className="mt-4 space-y-2">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>This week</span>
+                      <span>
+                        {goal.cadenceType === "DAILY" ? "Today" : "This week"}
+                      </span>
                       <span>
                         {weekCheckIns.length}/{target}
                       </span>

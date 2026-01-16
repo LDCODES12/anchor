@@ -298,7 +298,9 @@ export default async function DashboardPage() {
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>This week</span>
+                        <span>
+                          {goal.cadenceType === "DAILY" ? "Today" : "This week"}
+                        </span>
                         <span>
                           {checkInsThisWeek.length}/{target}
                         </span>
