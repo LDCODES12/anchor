@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { CompletionRing } from "@/components/completion-ring"
 import { CheerButton } from "@/components/cheer-button"
-import { RemindButton } from "@/components/remind-button"
+import { InlineRemind } from "@/components/inline-remind"
 import { GroupSetup } from "@/components/group-setup"
 import { InviteLinkCard } from "@/components/invite-link-card"
 import { WeeklySummaryCard } from "@/components/weekly-summary-card"
@@ -293,13 +293,6 @@ export default async function GroupPage() {
                   (g) => g.goal.cadenceType === "WEEKLY"
                 )
                 const completedCount = entry.goals.filter((g) => g.checkedToday).length
-                // Show remind for any incomplete daily goals, or weekly goals behind pace
-                const hasPendingDaily = dailyGoals.some((g) => !g.checkedToday)
-                const hasPendingWeekly = weeklyGoals.some((g) => {
-                  const target = g.goal.weeklyTarget ?? 1
-                  return g.weekCount < target
-                })
-                const needsReminder = hasPendingDaily || hasPendingWeekly
 
                 return (
                   <div key={entry.member.id} className="px-3 py-2">
@@ -316,54 +309,69 @@ export default async function GroupPage() {
                     {entry.goals.length === 0 ? (
                       <span className="text-xs text-muted-foreground">No goals</span>
                     ) : (
-                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                         {/* Daily goals - inline with icon */}
-                        {dailyGoals.map((g) => (
-                          <div key={g.goal.id} className="flex items-center gap-1 text-xs">
-                            <span
-                              className={`h-1.5 w-1.5 rounded-full ${
-                                g.checkedToday ? "bg-emerald-500" : "bg-amber-500"
-                              }`}
-                            />
-                            <span className={g.checkedToday ? "text-muted-foreground" : ""}>
-                              {g.goal.name}
-                            </span>
-                          </div>
-                        ))}
+                        {dailyGoals.map((g) => {
+                          const isPending = !g.checkedToday
+                          const showRemind = isPending && entry.member.user.id !== session.user.id
+                          
+                          return (
+                            <div key={g.goal.id} className="flex flex-col">
+                              <div className="flex items-center gap-1 text-xs">
+                                <span
+                                  className={`h-1.5 w-1.5 rounded-full ${
+                                    g.checkedToday ? "bg-emerald-500" : "bg-amber-500"
+                                  }`}
+                                />
+                                <span className={g.checkedToday ? "text-muted-foreground" : ""}>
+                                  {g.goal.name}
+                                </span>
+                              </div>
+                              {showRemind && (
+                                <InlineRemind
+                                  recipientId={entry.member.user.id}
+                                  recipientName={entry.member.user.name}
+                                  goalName={g.goal.name}
+                                />
+                              )}
+                            </div>
+                          )
+                        })}
 
                         {/* Weekly goals - inline with progress */}
                         {weeklyGoals.map((g) => {
                           const target = g.goal.weeklyTarget ?? 1
                           const progress = Math.min(100, Math.round((g.weekCount / target) * 100))
                           const isComplete = g.weekCount >= target
+                          const showRemind = !isComplete && entry.member.user.id !== session.user.id
 
                           return (
-                            <div key={g.goal.id} className="flex items-center gap-1.5 text-xs">
-                              {isComplete && (
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            <div key={g.goal.id} className="flex flex-col">
+                              <div className="flex items-center gap-1.5 text-xs">
+                                {isComplete && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                )}
+                                <span className={isComplete ? "text-muted-foreground" : ""}>
+                                  {g.goal.name}
+                                </span>
+                                <Progress value={progress} className="h-1 w-10" />
+                                <span className="text-[10px] text-muted-foreground tabular-nums">
+                                  {g.weekCount}/{target}
+                                </span>
+                              </div>
+                              {showRemind && (
+                                <InlineRemind
+                                  recipientId={entry.member.user.id}
+                                  recipientName={entry.member.user.name}
+                                  goalName={g.goal.name}
+                                />
                               )}
-                              <span className={isComplete ? "text-muted-foreground" : ""}>
-                                {g.goal.name}
-                              </span>
-                              <Progress value={progress} className="h-1 w-10" />
-                              <span className="text-[10px] text-muted-foreground tabular-nums">
-                                {g.weekCount}/{target}
-                              </span>
                             </div>
                           )
                         })}
                       </div>
                     )}
 
-                    {/* Remind button - compact */}
-                    {needsReminder && entry.member.user.id !== session.user.id && (
-                      <div className="mt-1.5">
-                        <RemindButton
-                          recipientId={entry.member.user.id}
-                          recipientName={entry.member.user.name}
-                        />
-                      </div>
-                    )}
                   </div>
                 )
               })}

@@ -8,14 +8,16 @@ import { prisma } from "@/lib/db"
 
 export async function sendReminderAction({
   recipientId,
+  goalName,
 }: {
   recipientId: string
+  goalName?: string
 }) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return { ok: false, error: "Unauthorized" }
 
   if (recipientId === session.user.id) {
-    return { ok: false, error: "You can’t remind yourself." }
+    return { ok: false, error: "You can't remind yourself." }
   }
 
   const membership = await prisma.groupMember.findFirst({
@@ -40,12 +42,16 @@ export async function sendReminderAction({
     return { ok: false, error: "Already sent a reminder in the last 24 hours." }
   }
 
+  const message = goalName 
+    ? `Nudge: ${goalName}`
+    : "Reminder to complete your goals"
+
   await prisma.reminder.create({
     data: {
       groupId: membership.groupId,
       senderId: session.user.id,
       recipientId,
-      message: "Friendly reminder to complete today’s goals.",
+      message,
     },
   })
 

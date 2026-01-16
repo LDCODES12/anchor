@@ -58,6 +58,7 @@ export default async function DashboardPage() {
   const reminderItems = reminders.map((reminder) => ({
     id: reminder.id,
     senderName: reminder.sender.name,
+    message: reminder.message,
   }))
 
   // Fetch recent cheers on user's check-ins (last 7 days)
@@ -262,14 +263,19 @@ export default async function DashboardPage() {
           
           {/* Reminders */}
           {reminderItems.length > 0 && (
-            <div className="flex items-center justify-between gap-3 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
-              <div className="text-sm">
-                <span className="font-medium text-amber-600 dark:text-amber-400">Nudge: </span>
-                <span className="text-muted-foreground">
-                  {reminderItems.map(r => r.senderName).join(", ")} reminded you to complete your goals
-                </span>
-              </div>
-              <DismissRemindersButton reminderIds={reminderItems.map(r => r.id)} />
+            <div className="space-y-1.5">
+              {reminderItems.map((reminder) => (
+                <div 
+                  key={reminder.id}
+                  className="flex items-center justify-between gap-3 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2"
+                >
+                  <div className="text-sm">
+                    <span className="font-medium">{reminder.senderName}</span>
+                    <span className="text-muted-foreground">: {reminder.message}</span>
+                  </div>
+                  <DismissRemindersButton reminderIds={[reminder.id]} />
+                </div>
+              ))}
             </div>
           )}
           
