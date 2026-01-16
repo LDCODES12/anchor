@@ -32,6 +32,8 @@ model User {
   members  GroupMember[]
   goals    Goal[]
   checkIns CheckIn[]
+  sentReminders     Reminder[] @relation("SentReminders")
+  receivedReminders Reminder[] @relation("ReceivedReminders")
 
   accounts Account[]
   sessions Session[]
@@ -45,6 +47,7 @@ model Group {
 
   members GroupMember[]
   goals   Goal[]
+  reminders Reminder[]
 }
 
 model GroupMember {
@@ -98,6 +101,23 @@ model CheckIn {
   @@unique([goalId, userId, localDateKey])
   @@index([goalId, userId, weekKey])
   @@index([userId, weekKey])
+}
+
+model Reminder {
+  id          String   @id @default(cuid())
+  groupId     String
+  senderId    String
+  recipientId String
+  message     String
+  createdAt   DateTime @default(now())
+  readAt      DateTime?
+
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sender    User  @relation("SentReminders", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User  @relation("ReceivedReminders", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, readAt])
+  @@index([groupId, createdAt])
 }
 
 model Account {

@@ -16,6 +16,7 @@ import { CheerButton } from "@/components/cheer-button"
 import { RemindButton } from "@/components/remind-button"
 import { GroupSetup } from "@/components/group-setup"
 import { InviteLinkCard } from "@/components/invite-link-card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default async function GroupPage() {
   const session = await getServerSession(authOptions)
@@ -143,12 +144,7 @@ export default async function GroupPage() {
     (a, b) => b.totalPoints - a.totalPoints
   )
 
-  const nudges = sortedLeaderboard.filter((entry) => !entry.completedToday)
   const pulseCompleted = sortedLeaderboard.filter((entry) => entry.completedToday).length
-  const pulsePct =
-    sortedLeaderboard.length === 0
-      ? 0
-      : Math.round((pulseCompleted / sortedLeaderboard.length) * 100)
 
   const baseUrl =
     process.env.NEXTAUTH_URL ?? "http://localhost:3000"
@@ -191,149 +187,184 @@ export default async function GroupPage() {
 
       <InviteLinkCard inviteUrl={inviteUrl} inviteCode={group.inviteCode} />
 
-      <section className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Leaderboard</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Points</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedLeaderboard.map((entry, index) => (
-                  <TableRow key={entry.member.id}>
-                    <TableCell>
-                      {index + 1}. {entry.member.user.name}
-                    </TableCell>
-                    <TableCell>{entry.totalPoints}</TableCell>
-                    <TableCell>
-                      {entry.completedToday ? (
-                        <Badge variant="secondary">Completed today</Badge>
-                      ) : (
-                        <Badge variant="outline">Not completed</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Pulse</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-xl border bg-background px-3 py-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span>Members active today</span>
-                <span className="font-medium">
-                  {pulseCompleted}/{sortedLeaderboard.length}
-                </span>
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground">
-                Quick snapshot of who has completed at least one goal today.
-              </div>
-            </div>
-            <div className="grid gap-3 text-sm">
-              {todaySnapshots.map((entry) => {
-                const completedCount = entry.goals.filter(
-                  (goal) => goal.checkedToday
-                ).length
-                const totalGoals = entry.goals.length
-                const needsReminder = entry.goals.some(
-                  (goal) => goal.goal.cadenceType === "DAILY" && !goal.checkedToday
-                )
-
-                return (
-                  <div
-                    key={entry.member.id}
-                    className="rounded-xl border bg-background px-3 py-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{entry.member.user.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {totalGoals === 0 ? "No goals" : `${completedCount} completed`}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                      {entry.goals.length === 0 ? (
-                        <span className="text-muted-foreground">No goals yet.</span>
-                      ) : (
-                        entry.goals.slice(0, 3).map((goal) => {
-                          const isDaily = goal.goal.cadenceType === "DAILY"
-                          const className = goal.checkedToday
-                            ? "bg-emerald-500/15 text-emerald-600"
-                            : isDaily
-                            ? "bg-amber-500/15 text-amber-600"
-                            : "bg-muted text-muted-foreground"
-
-                          return (
-                            <span
-                              key={goal.goal.id}
-                              className={`rounded-full px-2 py-1 ${className}`}
-                            >
-                              {goal.goal.name}
-                            </span>
-                          )
-                        })
-                      )}
-                      {entry.goals.length > 3 ? (
-                        <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">
-                          +{entry.goals.length - 3} more
-                        </span>
-                      ) : null}
-                    </div>
-                    {needsReminder ? (
-                      <div className="mt-2">
-                        <RemindButton name={entry.member.user.name} />
-                      </div>
-                    ) : null}
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent activity</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {recentCheckIns.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              No completions yet. Be the first to log progress.
-            </div>
-          ) : (
-            recentCheckIns.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between rounded-xl border bg-background px-3 py-2 text-sm"
-              >
-                <span>
-                  {item.user.name} completed:{" "}
-                  <span className="font-medium">{item.goal.name}</span>
-                </span>
-                <div className="flex items-center gap-3">
-                  <CheerButton name={item.user.name} />
-                  <span className="text-xs text-muted-foreground">
-                    {item.timestamp.toLocaleString()}
+      <Tabs defaultValue="pulse" className="w-full">
+        <TabsList>
+          <TabsTrigger value="pulse">Pulse</TabsTrigger>
+          <TabsTrigger value="details">Details</TabsTrigger>
+        </TabsList>
+        <TabsContent value="pulse" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pulse</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-xl border bg-background px-3 py-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span>Members active today</span>
+                  <span className="font-medium">
+                    {pulseCompleted}/{sortedLeaderboard.length}
                   </span>
                 </div>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Quick snapshot of who has completed at least one goal today.
+                </div>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+              <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500/70" />
+                  Completed today
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-amber-500/70" />
+                  Due today
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-muted" />
+                  Weekly / not due today
+                </span>
+              </div>
+              <div className="grid gap-3 text-sm">
+                {todaySnapshots.map((entry) => {
+                  const completedCount = entry.goals.filter(
+                    (goal) => goal.checkedToday
+                  ).length
+                  const totalGoals = entry.goals.length
+                  const needsReminder = entry.goals.some(
+                    (goal) =>
+                      goal.goal.cadenceType === "DAILY" && !goal.checkedToday
+                  )
+
+                  return (
+                    <div
+                      key={entry.member.id}
+                      className="rounded-xl border bg-background px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">
+                          {entry.member.user.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {totalGoals === 0
+                            ? "No goals"
+                            : `${completedCount} completed`}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {entry.goals.length === 0 ? (
+                          <span className="text-muted-foreground">
+                            No goals yet.
+                          </span>
+                        ) : (
+                          entry.goals.slice(0, 12).map((goal) => {
+                            const isDaily = goal.goal.cadenceType === "DAILY"
+                            const className = goal.checkedToday
+                              ? "bg-emerald-500/70"
+                              : isDaily
+                              ? "bg-amber-500/70"
+                              : "bg-muted"
+                            const label = goal.checkedToday
+                              ? "Completed today"
+                              : isDaily
+                              ? "Due today"
+                              : "Weekly / not due today"
+
+                            return (
+                              <span
+                                key={goal.goal.id}
+                                className={`h-4 w-4 rounded-sm ${className}`}
+                                title={`${goal.goal.name} — ${label}`}
+                              />
+                            )
+                          })
+                        )}
+                        {entry.goals.length > 12 ? (
+                          <span className="rounded-sm bg-muted px-2 py-1 text-[11px] text-muted-foreground">
+                            +{entry.goals.length - 12} more
+                          </span>
+                        ) : null}
+                      </div>
+                      {needsReminder && entry.member.user.id !== session.user.id ? (
+                        <div className="mt-2">
+                          <RemindButton
+                            recipientId={entry.member.user.id}
+                            recipientName={entry.member.user.name}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="details" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Leaderboard</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Points</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedLeaderboard.map((entry, index) => (
+                    <TableRow key={entry.member.id}>
+                      <TableCell>
+                        {index + 1}. {entry.member.user.name}
+                      </TableCell>
+                      <TableCell>{entry.totalPoints}</TableCell>
+                      <TableCell>
+                        {entry.completedToday ? (
+                          <Badge variant="secondary">Completed today</Badge>
+                        ) : (
+                          <Badge variant="outline">Not completed</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent activity</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recentCheckIns.length === 0 ? (
+                <div className="text-sm text-muted-foreground">
+                  No completions yet. Be the first to log progress.
+                </div>
+              ) : (
+                recentCheckIns.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between rounded-xl border bg-background px-3 py-2 text-sm"
+                  >
+                    <span>
+                      {item.user.name} completed:{" "}
+                      <span className="font-medium">{item.goal.name}</span>
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <CheerButton name={item.user.name} />
+                      <span className="text-xs text-muted-foreground">
+                        {item.timestamp.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
     </div>
   )
 }

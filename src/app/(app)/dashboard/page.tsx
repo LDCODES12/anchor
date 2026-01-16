@@ -23,6 +23,7 @@ import { CompletionRing } from "@/components/completion-ring"
 import { FocusModeToggle } from "@/components/focus-mode-toggle"
 import { TinyHeatmap } from "@/components/tiny-heatmap"
 import { Sparkline } from "@/components/sparkline"
+import { ReminderBanner } from "@/components/reminder-banner"
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -43,6 +44,17 @@ export default async function DashboardPage() {
     include: { checkIns: true },
     orderBy: { createdAt: "desc" },
   })
+
+  const reminders = await prisma.reminder.findMany({
+    where: { recipientId: user.id, readAt: null },
+    include: { sender: true },
+    orderBy: { createdAt: "desc" },
+    take: 3,
+  })
+  const reminderItems = reminders.map((reminder) => ({
+    id: reminder.id,
+    senderName: reminder.sender.name,
+  }))
 
   const todayKey = getLocalDateKey(new Date(), user.timezone)
   const now = new Date()
@@ -204,6 +216,8 @@ export default async function DashboardPage() {
           You haven&apos;t completed a goal today. A quick tap keeps your streak alive.
         </div>
       ) : null}
+
+      <ReminderBanner reminders={reminderItems} />
 
       <Card className="border bg-card/70 shadow-sm backdrop-blur" data-focus-hide="true">
         <CardContent className="grid gap-4 p-6 md:grid-cols-[1.2fr_1fr] md:items-center">
