@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useEffect, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,11 @@ export function CheckInButton({
   const [optimisticCount, setOptimisticCount] = useState(todayCount)
   const [showConfetti, setShowConfetti] = useState(false)
   const router = useRouter()
+
+  // Sync state when props change (e.g., after server revalidation)
+  useEffect(() => {
+    setOptimisticCount(todayCount)
+  }, [todayCount])
 
   const isMultiTarget = dailyTarget > 1
   const isDone = isMultiTarget ? optimisticCount >= dailyTarget : optimisticCount > 0

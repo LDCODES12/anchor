@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import {
   DndContext,
@@ -186,6 +186,11 @@ interface DraggableGoalsGridProps {
 export function DraggableGoalsGrid({ goals }: DraggableGoalsGridProps) {
   const [items, setItems] = useState(goals)
   const [activeId, setActiveId] = useState<string | null>(null)
+
+  // Sync state when props change (e.g., after server revalidation)
+  useEffect(() => {
+    setItems(goals)
+  }, [goals])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
