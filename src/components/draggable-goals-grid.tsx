@@ -10,6 +10,10 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+  type DropAnimation,
 } from "@dnd-kit/core"
 import {
   arrayMove,
@@ -18,6 +22,7 @@ import {
   useSortable,
   rectSortingStrategy,
 } from "@dnd-kit/sortable"
+import { restrictToParentElement } from "@dnd-kit/modifiers"
 import { CSS } from "@dnd-kit/utilities"
 import { GripVertical } from "lucide-react"
 import { toast } from "sonner"
@@ -48,43 +53,45 @@ interface GoalGridData {
   }
 }
 
-function SortableGoalCard({ data }: { data: GoalGridData }) {
-  const { goal, todayDone, todayPartial, todayCount, dailyTarget, weekCheckIns, weekTarget, weekProgress, consistency, gracefulStreak } = data
-  
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: goal.id })
+// Custom drop animation
+const dropAnimation: DropAnimation = {
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: {
+        opacity: "0.5",
+      },
+    },
+  }),
+}
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
+// Static card content - shared between sortable and overlay
+function GoalCardContent({ 
+  data, 
+  isDragging = false,
+  isOverlay = false,
+}: { 
+  data: GoalGridData
+  isDragging?: boolean
+  isOverlay?: boolean
+}) {
+  const { goal, todayDone, todayPartial, todayCount, dailyTarget, weekCheckIns, weekTarget, weekProgress, consistency, gracefulStreak } = data
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
       className={cn(
-        "group rounded-xl border bg-card p-5 transition-all hover:shadow-md",
+        "rounded-xl border bg-card p-5 transition-shadow h-full",
         todayDone && !todayPartial ? "border-emerald-500/30 bg-emerald-500/5" : "",
-        isDragging && "z-50 shadow-lg opacity-95"
+        isDragging && "opacity-50",
+        isOverlay && "shadow-2xl ring-2 ring-primary/20 cursor-grabbing"
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1 min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            {/* Drag handle */}
-            <div
-              {...attributes}
-              {...listeners}
-              className="cursor-grab active:cursor-grabbing touch-none opacity-0 group-hover:opacity-100 transition-opacity -ml-1 shrink-0"
-              title="Drag to reorder"
-            >
+            <div className={cn(
+              "cursor-grab active:cursor-grabbing touch-none shrink-0",
+              isOverlay ? "cursor-grabbing" : ""
+            )}>
               <GripVertical className="h-4 w-4 text-muted-foreground" />
             </div>
             <span
@@ -99,6 +106,7 @@ function SortableGoalCard({ data }: { data: GoalGridData }) {
             <Link
               href={`/goals/${goal.id}`}
               className="font-semibold truncate hover:underline"
+              onClick={(e) => isOverlay && e.preventDefault()}
             >
               {goal.name}
             </Link>
@@ -129,14 +137,44 @@ function SortableGoalCard({ data }: { data: GoalGridData }) {
         <Progress value={weekProgress} className="h-1.5" />
       </div>
 
-      <div className="mt-4">
-        <CheckInButton
-          goalId={goal.id}
-          completed={todayDone}
-          todayCount={todayCount}
-          dailyTarget={dailyTarget}
-        />
-      </div>
+      {!isOverlay && (
+        <div className="mt-4">
+          <CheckInButton
+            goalId={goal.id}
+            completed={todayDone}
+            todayCount={todayCount}
+            dailyTarget={dailyTarget}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SortableGoalCard({ data }: { data: GoalGridData }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: data.goal.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition ?? "transform 200ms cubic-bezier(0.25, 1, 0.5, 1)",
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="touch-none h-full"
+    >
+      <GoalCardContent data={data} isDragging={isDragging} />
     </div>
   )
 }
@@ -147,11 +185,12 @@ interface DraggableGoalsGridProps {
 
 export function DraggableGoalsGrid({ goals }: DraggableGoalsGridProps) {
   const [items, setItems] = useState(goals)
+  const [activeId, setActiveId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -159,8 +198,13 @@ export function DraggableGoalsGrid({ goals }: DraggableGoalsGridProps) {
     })
   )
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
+    setActiveId(null)
 
     if (over && active.id !== over.id) {
       const oldIndex = items.findIndex(item => item.goal.id === active.id)
@@ -178,6 +222,12 @@ export function DraggableGoalsGrid({ goals }: DraggableGoalsGridProps) {
     }
   }
 
+  const handleDragCancel = () => {
+    setActiveId(null)
+  }
+
+  const activeItem = activeId ? items.find(item => item.goal.id === activeId) : null
+
   if (items.length === 0) {
     return (
       <div className="rounded-xl border-2 border-dashed bg-muted/30 p-8 text-center">
@@ -192,7 +242,10 @@ export function DraggableGoalsGrid({ goals }: DraggableGoalsGridProps) {
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+      modifiers={[restrictToParentElement]}
     >
       <SortableContext 
         items={items.map(item => item.goal.id)} 
@@ -204,6 +257,14 @@ export function DraggableGoalsGrid({ goals }: DraggableGoalsGridProps) {
           ))}
         </div>
       </SortableContext>
+      
+      <DragOverlay dropAnimation={dropAnimation}>
+        {activeItem ? (
+          <div className="w-full max-w-md">
+            <GoalCardContent data={activeItem} isOverlay />
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   )
 }

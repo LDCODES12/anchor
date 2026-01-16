@@ -10,6 +10,10 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+  type DropAnimation,
 } from "@dnd-kit/core"
 import {
   arrayMove,
@@ -18,6 +22,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
+import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers"
 import { CSS } from "@dnd-kit/utilities"
 import { GripVertical } from "lucide-react"
 import { toast } from "sonner"
@@ -49,43 +54,45 @@ interface GoalData {
   hasMultiTarget: boolean
 }
 
-function SortableGoalCard({ data }: { data: GoalData }) {
-  const { goal, todayDone, todayPartial, todayCount, dailyTarget, checkInsThisWeek, consistency, weekTarget, weekProgress, counts, sparkValues, hasMultiTarget } = data
-  
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: goal.id })
+// Custom drop animation for smooth finish
+const dropAnimation: DropAnimation = {
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: {
+        opacity: "0.5",
+      },
+    },
+  }),
+}
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
+// Static card content - shared between sortable and overlay
+function GoalCardContent({ 
+  data, 
+  isDragging = false,
+  isOverlay = false,
+}: { 
+  data: GoalData
+  isDragging?: boolean
+  isOverlay?: boolean
+}) {
+  const { goal, todayDone, todayPartial, todayCount, dailyTarget, checkInsThisWeek, consistency, weekTarget, weekProgress, counts, sparkValues, hasMultiTarget } = data
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
       className={cn(
-        "group rounded-xl border bg-card p-4 transition-all hover:shadow-md",
+        "rounded-xl border bg-card p-4 transition-shadow",
         todayDone && !todayPartial ? "border-emerald-500/30 bg-emerald-500/5" : "",
-        isDragging && "z-50 shadow-lg opacity-95"
+        isDragging && "opacity-50",
+        isOverlay && "shadow-2xl ring-2 ring-primary/20 cursor-grabbing"
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1 flex-1">
           <div className="flex items-center gap-2">
-            {/* Drag handle */}
-            <div
-              {...attributes}
-              {...listeners}
-              className="cursor-grab active:cursor-grabbing touch-none opacity-0 group-hover:opacity-100 transition-opacity -ml-1"
-              title="Drag to reorder"
-            >
+            <div className={cn(
+              "cursor-grab active:cursor-grabbing touch-none",
+              isOverlay ? "cursor-grabbing" : ""
+            )}>
               <GripVertical className="h-4 w-4 text-muted-foreground" />
             </div>
             <span
@@ -99,7 +106,11 @@ function SortableGoalCard({ data }: { data: GoalData }) {
                     : "border-2 border-muted-foreground/30"
               }`}
             />
-            <Link href={`/goals/${goal.id}`} className="font-medium hover:underline">
+            <Link 
+              href={`/goals/${goal.id}`} 
+              className="font-medium hover:underline"
+              onClick={(e) => isOverlay && e.preventDefault()}
+            >
               {goal.name}
             </Link>
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
@@ -126,12 +137,14 @@ function SortableGoalCard({ data }: { data: GoalData }) {
             <span>{checkInsThisWeek.length}/{weekTarget} this week</span>
           </div>
         </div>
-        <CheckInButton
-          goalId={goal.id}
-          completed={todayDone}
-          todayCount={todayCount}
-          dailyTarget={dailyTarget}
-        />
+        {!isOverlay && (
+          <CheckInButton
+            goalId={goal.id}
+            completed={todayDone}
+            todayCount={todayCount}
+            dailyTarget={dailyTarget}
+          />
+        )}
       </div>
       
       <div className="mt-3 space-y-2">
@@ -149,17 +162,46 @@ function SortableGoalCard({ data }: { data: GoalData }) {
   )
 }
 
+function SortableGoalCard({ data }: { data: GoalData }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: data.goal.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition ?? "transform 200ms cubic-bezier(0.25, 1, 0.5, 1)",
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="touch-none"
+    >
+      <GoalCardContent data={data} isDragging={isDragging} />
+    </div>
+  )
+}
+
 interface DraggableDashboardGoalsProps {
   goals: GoalData[]
 }
 
 export function DraggableDashboardGoals({ goals }: DraggableDashboardGoalsProps) {
   const [items, setItems] = useState(goals)
+  const [activeId, setActiveId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5, // Reduced for snappier feel
       },
     }),
     useSensor(KeyboardSensor, {
@@ -167,8 +209,13 @@ export function DraggableDashboardGoals({ goals }: DraggableDashboardGoalsProps)
     })
   )
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
+    setActiveId(null)
 
     if (over && active.id !== over.id) {
       const oldIndex = items.findIndex(item => item.goal.id === active.id)
@@ -185,6 +232,12 @@ export function DraggableDashboardGoals({ goals }: DraggableDashboardGoalsProps)
       }
     }
   }
+
+  const handleDragCancel = () => {
+    setActiveId(null)
+  }
+
+  const activeItem = activeId ? items.find(item => item.goal.id === activeId) : null
 
   if (items.length === 0) {
     return (
@@ -204,7 +257,10 @@ export function DraggableDashboardGoals({ goals }: DraggableDashboardGoalsProps)
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+      modifiers={[restrictToVerticalAxis, restrictToParentElement]}
     >
       <SortableContext 
         items={items.map(item => item.goal.id)} 
@@ -216,6 +272,12 @@ export function DraggableDashboardGoals({ goals }: DraggableDashboardGoalsProps)
           ))}
         </div>
       </SortableContext>
+      
+      <DragOverlay dropAnimation={dropAnimation}>
+        {activeItem ? (
+          <GoalCardContent data={activeItem} isOverlay />
+        ) : null}
+      </DragOverlay>
     </DndContext>
   )
 }
