@@ -46,40 +46,47 @@ export function MonthlyHeatmap({
   // Find max count for intensity scaling
   const maxCount = Math.max(1, ...data.map((d) => d.count))
 
-  // Get month labels - show at the start of each month, but skip if too close to previous
-  const allMonthLabels: { label: string; weekIndex: number }[] = []
-  let lastMonth = -1
-  grid.forEach((week, weekIndex) => {
-    const firstDay = week[0]
-    const month = firstDay.date.getMonth()
-    if (month !== lastMonth) {
-      allMonthLabels.push({ label: format(firstDay.date, "MMM"), weekIndex })
-      lastMonth = month
-    }
-  })
-  
-  // Filter out labels that would overlap (need at least 3 columns between labels)
-  const minColumnGap = 3
-  const monthLabels: typeof allMonthLabels = []
-  allMonthLabels.forEach((label) => {
-    const prevLabel = monthLabels[monthLabels.length - 1]
-    if (!prevLabel || label.weekIndex - prevLabel.weekIndex >= minColumnGap) {
-      monthLabels.push(label)
-    }
-  })
-
   const cellSize = 11
   const gap = 3
 
+  // Get month spans - find start and end week for each month
+  const monthSpans: { label: string; startWeek: number; endWeek: number }[] = []
+  let prevMonth = -1
+  
+  for (let weekIndex = 0; weekIndex < grid.length; weekIndex++) {
+    const firstDay = grid[weekIndex][0]
+    const month = firstDay.date.getMonth()
+    
+    if (month !== prevMonth) {
+      // Close previous span
+      if (monthSpans.length > 0) {
+        monthSpans[monthSpans.length - 1].endWeek = weekIndex - 1
+      }
+      // Start new span
+      monthSpans.push({ 
+        label: format(firstDay.date, "MMM"), 
+        startWeek: weekIndex, 
+        endWeek: grid.length - 1  // Will be updated when next month starts
+      })
+      prevMonth = month
+    }
+  }
+  
+  // Calculate center position for each month label
+  const monthLabels = monthSpans.map(span => ({
+    label: span.label,
+    position: ((span.startWeek + span.endWeek) / 2) * (cellSize + gap)
+  }))
+
   return (
     <div className={cn("inline-block", className)}>
-      {/* Month labels - absolutely positioned */}
+      {/* Month labels - centered over each month's columns */}
       <div className="relative h-4 mb-1" style={{ marginLeft: 18 }}>
-        {monthLabels.map(({ label, weekIndex }) => (
+        {monthLabels.map(({ label, position }) => (
           <span
-            key={`${label}-${weekIndex}`}
-            className="absolute text-[10px] text-muted-foreground whitespace-nowrap"
-            style={{ left: weekIndex * (cellSize + gap) }}
+            key={`${label}-${position}`}
+            className="absolute text-[10px] text-muted-foreground whitespace-nowrap -translate-x-1/2"
+            style={{ left: position }}
           >
             {label}
           </span>
