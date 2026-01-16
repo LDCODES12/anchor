@@ -90,7 +90,9 @@ export default async function GroupPage() {
         // Compute streaks and consistency
         const dateKeys = summarizeDailyCheckIns(checkIns)
         const dailyStreak = computeDailyStreak(dateKeys, todayKey, member.user.timezone)
-        const consistency = computeConsistencyPercentage(dateKeys, todayKey, member.user.timezone, 30)
+        const consistency = computeConsistencyPercentage(
+          dateKeys, todayKey, member.user.timezone, 30, goal.createdAt, goal.dailyTarget ?? 1
+        )
         const gracefulStreak = computeGracefulStreak(dateKeys, todayKey, member.user.timezone, goal.streakFreezes)
         
         const weeklyStreak =

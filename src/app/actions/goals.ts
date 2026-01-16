@@ -14,6 +14,7 @@ export async function createGoalAction(formData: FormData) {
     name: formData.get("name"),
     cadenceType: formData.get("cadenceType"),
     weeklyTarget: formData.get("weeklyTarget"),
+    dailyTarget: formData.get("dailyTarget"),
     notes: formData.get("notes"),
   })
   if (!parsed.success) {
@@ -28,7 +29,7 @@ export async function createGoalAction(formData: FormData) {
     where: { userId: session.user.id },
   })
 
-  await prisma.goal.create({
+  const goal = await prisma.goal.create({
     data: {
       name: parsed.data.name,
       cadenceType: parsed.data.cadenceType,
@@ -36,12 +37,63 @@ export async function createGoalAction(formData: FormData) {
         parsed.data.cadenceType === "WEEKLY"
           ? parsed.data.weeklyTarget ?? 1
           : null,
+      dailyTarget: parsed.data.dailyTarget ?? 1,
       notes: parsed.data.notes ?? null,
       owner: { connect: { id: session.user.id } },
       ...(membership?.groupId
         ? { group: { connect: { id: membership.groupId } } }
         : {}),
     },
+  })
+
+  revalidatePath("/goals")
+  revalidatePath("/dashboard")
+  return { ok: true, goalId: goal.id }
+}
+
+export async function deleteGoalAction(goalId: string) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return { ok: false, error: "Unauthorized" }
+
+  // Verify the user owns the goal
+  const goal = await prisma.goal.findUnique({
+    where: { id: goalId },
+  })
+  
+  if (!goal) {
+    return { ok: false, error: "Goal not found." }
+  }
+  
+  if (goal.ownerId !== session.user.id) {
+    return { ok: false, error: "Not authorized to delete this goal." }
+  }
+
+  // Delete the goal (check-ins will cascade delete due to schema)
+  await prisma.goal.delete({
+    where: { id: goalId },
+  })
+
+  revalidatePath("/goals")
+  revalidatePath("/dashboard")
+  revalidatePath("/group")
+  return { ok: true }
+}
+
+export async function archiveGoalAction(goalId: string) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return { ok: false, error: "Unauthorized" }
+
+  const goal = await prisma.goal.findUnique({
+    where: { id: goalId },
+  })
+  
+  if (!goal || goal.ownerId !== session.user.id) {
+    return { ok: false, error: "Goal not found." }
+  }
+
+  await prisma.goal.update({
+    where: { id: goalId },
+    data: { active: false },
   })
 
   revalidatePath("/goals")

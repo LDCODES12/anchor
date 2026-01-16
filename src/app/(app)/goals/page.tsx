@@ -88,7 +88,9 @@ export default async function GoalsPage() {
                 dateKeys,
                 todayKey,
                 user.timezone,
-                30
+                30,
+                goal.createdAt,
+                goal.dailyTarget ?? 1
               )
 
               return (

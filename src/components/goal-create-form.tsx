@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { createGoalAction } from "@/app/actions/goals"
+import { createGoalAction, deleteGoalAction } from "@/app/actions/goals"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,10 +16,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Undo2 } from "lucide-react"
 
 export function GoalCreateForm() {
   const [cadenceType, setCadenceType] = useState("DAILY")
+  const [showDailyTarget, setShowDailyTarget] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [lastCreatedGoalId, setLastCreatedGoalId] = useState<string | null>(null)
   const router = useRouter()
   const formRef = useRef<HTMLFormElement | null>(null)
 
@@ -27,23 +30,57 @@ export function GoalCreateForm() {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     formData.set("cadenceType", cadenceType)
+    if (!showDailyTarget) {
+      formData.delete("dailyTarget")
+    }
     startTransition(async () => {
       const result = await createGoalAction(formData)
       if (!result.ok) {
         toast.error(result.error ?? "Could not create goal.")
         return
       }
-      toast.success("Goal created!")
+      setLastCreatedGoalId(result.goalId ?? null)
+      toast.success("Goal created!", {
+        action: result.goalId ? {
+          label: "Undo",
+          onClick: () => handleUndo(result.goalId!),
+        } : undefined,
+      })
       formRef.current?.reset()
       setCadenceType("DAILY")
+      setShowDailyTarget(false)
       router.refresh()
     })
+  }
+
+  const handleUndo = async (goalId: string) => {
+    const result = await deleteGoalAction(goalId)
+    if (result.ok) {
+      toast.success("Goal removed")
+      setLastCreatedGoalId(null)
+      router.refresh()
+    } else {
+      toast.error(result.error ?? "Could not undo")
+    }
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create a goal</CardTitle>
+        <CardTitle className="flex items-center justify-between">
+          <span>Create a goal</span>
+          {lastCreatedGoalId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              onClick={() => handleUndo(lastCreatedGoalId)}
+            >
+              <Undo2 className="h-4 w-4 mr-1" />
+              Undo last
+            </Button>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form ref={formRef} className="space-y-4" onSubmit={handleSubmit}>
@@ -70,7 +107,7 @@ export function GoalCreateForm() {
           </div>
           {cadenceType === "WEEKLY" ? (
             <div className="space-y-2">
-              <Label htmlFor="weeklyTarget">Weekly target</Label>
+              <Label htmlFor="weeklyTarget">Times per week</Label>
               <Input
                 id="weeklyTarget"
                 name="weeklyTarget"
@@ -81,7 +118,40 @@ export function GoalCreateForm() {
                 required
               />
             </div>
-          ) : null}
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="multiplePerDay"
+                  checked={showDailyTarget}
+                  onChange={(e) => setShowDailyTarget(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="multiplePerDay" className="text-sm font-normal cursor-pointer">
+                  Requires multiple completions per day
+                </Label>
+              </div>
+              {showDailyTarget && (
+                <div className="space-y-2">
+                  <Label htmlFor="dailyTarget">Times per day</Label>
+                  <Input
+                    id="dailyTarget"
+                    name="dailyTarget"
+                    type="number"
+                    min={2}
+                    max={10}
+                    placeholder="2"
+                    defaultValue={2}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    E.g., take medication 3x/day, drink 8 glasses of water
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="notes">Notes (optional)</Label>
             <Textarea

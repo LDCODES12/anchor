@@ -37,7 +37,8 @@ export async function checkInGoalAction(formData: FormData) {
   const localDateKey = getLocalDateKey(now, user.timezone)
   const weekKey = getWeekKey(now, user.timezone)
 
-  const existing = await prisma.checkIn.findFirst({
+  // Count today's check-ins for this goal
+  const todayCheckIns = await prisma.checkIn.findMany({
     where: {
       goalId: goal.id,
       userId: session.user.id,
@@ -45,21 +46,32 @@ export async function checkInGoalAction(formData: FormData) {
     },
   })
   
-  // If already completed, allow upgrading from partial to full
-  if (existing) {
-    if (existing.isPartial && !isPartial) {
-      // Upgrade partial to full completion
-      await prisma.checkIn.update({
-        where: { id: existing.id },
-        data: { isPartial: false, timestamp: now },
-      })
-      revalidatePath("/dashboard")
-      revalidatePath("/group")
-      revalidatePath("/goals")
-      revalidatePath(`/goals/${goal.id}`)
-      return { ok: true, upgraded: true }
+  const dailyTarget = goal.dailyTarget ?? 1
+  const todayCount = todayCheckIns.length
+  
+  // For single-target goals, use the old partial upgrade logic
+  if (dailyTarget === 1) {
+    const existing = todayCheckIns[0]
+    if (existing) {
+      if (existing.isPartial && !isPartial) {
+        // Upgrade partial to full completion
+        await prisma.checkIn.update({
+          where: { id: existing.id },
+          data: { isPartial: false, timestamp: now },
+        })
+        revalidatePath("/dashboard")
+        revalidatePath("/group")
+        revalidatePath("/goals")
+        revalidatePath(`/goals/${goal.id}`)
+        return { ok: true, upgraded: true }
+      }
+      return { ok: false, error: "Already completed today." }
     }
-    return { ok: false, error: "Already completed today." }
+  } else {
+    // For multi-target goals, check if we've hit the daily target
+    if (todayCount >= dailyTarget) {
+      return { ok: false, error: `Already completed ${dailyTarget}x today.` }
+    }
   }
 
   await prisma.checkIn.create({
@@ -69,7 +81,7 @@ export async function checkInGoalAction(formData: FormData) {
       timestamp: now,
       localDateKey,
       weekKey,
-      isPartial,
+      isPartial: dailyTarget === 1 ? isPartial : false, // Only support partial for single-target goals
     },
   })
 
@@ -96,5 +108,14 @@ export async function checkInGoalAction(formData: FormData) {
   revalidatePath("/group")
   revalidatePath("/goals")
   revalidatePath(`/goals/${goal.id}`)
-  return { ok: true, streakMilestone }
+  
+  // Return how many completions they now have today (for multi-target goals)
+  const newCount = todayCount + 1
+  return { 
+    ok: true, 
+    streakMilestone,
+    todayCount: newCount,
+    dailyTarget,
+    isComplete: newCount >= dailyTarget,
+  }
 }

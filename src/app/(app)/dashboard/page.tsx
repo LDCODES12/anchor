@@ -70,9 +70,11 @@ export default async function DashboardPage() {
 
   const todayGoals = goals.map((goal) => {
     const checkIns = goal.checkIns.filter((check) => check.userId === user.id)
-    const todayCheckIn = checkIns.find((check) => check.localDateKey === todayKey)
-    const todayDone = !!todayCheckIn
-    const todayPartial = todayCheckIn?.isPartial ?? false
+    const todayCheckIns = checkIns.filter((check) => check.localDateKey === todayKey)
+    const todayCount = todayCheckIns.length
+    const dailyTarget = goal.dailyTarget ?? 1
+    const todayDone = todayCount >= dailyTarget
+    const todayPartial = todayCheckIns.length > 0 && todayCheckIns[0]?.isPartial && dailyTarget === 1
     const checkInsThisWeek = checkIns.filter(
       (check) => check.weekKey === weekKey
     )
@@ -80,7 +82,9 @@ export default async function DashboardPage() {
     const dateKeys = summarizeDailyCheckIns(checkIns)
     const dailyStreak = computeDailyStreak(dateKeys, todayKey, user.timezone)
     const bestStreak = computeBestDailyStreak(dateKeys, user.timezone)
-    const consistency = computeConsistencyPercentage(dateKeys, todayKey, user.timezone, 30)
+    const consistency = computeConsistencyPercentage(
+      dateKeys, todayKey, user.timezone, 30, goal.createdAt, dailyTarget
+    )
     const recentCompletions = countRecentCompletions(dateKeys, todayKey, user.timezone, 30)
     const gracefulStreak = computeGracefulStreak(dateKeys, todayKey, user.timezone, goal.streakFreezes)
     
@@ -99,6 +103,8 @@ export default async function DashboardPage() {
       goal,
       todayDone,
       todayPartial,
+      todayCount,
+      dailyTarget,
       checkInsThisWeek,
       dailyStreak,
       bestStreak,
@@ -302,7 +308,7 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-3">
-            {todayGoals.map(({ goal, todayDone, todayPartial, checkInsThisWeek, checkIns, consistency }) => {
+            {todayGoals.map(({ goal, todayDone, todayPartial, todayCount, dailyTarget, checkInsThisWeek, checkIns, consistency }) => {
                 const weeklyTarget = goal.weeklyTarget ?? 1
                 const isWeekly =
                   goal.cadenceType === "WEEKLY" && goal.weeklyTarget != null
@@ -325,6 +331,7 @@ export default async function DashboardPage() {
                   (key) =>
                     checkIns.filter((check) => check.localDateKey === key).length
                 )
+                const hasMultiTarget = dailyTarget > 1
 
                 return (
                   <div
@@ -342,7 +349,9 @@ export default async function DashboardPage() {
                                 ? todayPartial 
                                   ? "bg-amber-500" 
                                   : "bg-emerald-500" 
-                                : "border-2 border-muted-foreground/30"
+                                : todayCount > 0
+                                  ? "bg-amber-500"
+                                  : "border-2 border-muted-foreground/30"
                             }`}
                           />
                           <span className="font-medium">{goal.name}</span>
@@ -353,15 +362,25 @@ export default async function DashboardPage() {
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <span>
                             {goal.cadenceType === "DAILY"
-                              ? "Daily"
+                              ? hasMultiTarget 
+                                ? `${dailyTarget}x/day`
+                                : "Daily"
                               : `${goal.weeklyTarget}x/week`}
                           </span>
                           <span>•</span>
+                          {hasMultiTarget && goal.cadenceType === "DAILY" && (
+                            <>
+                              <span className={todayCount >= dailyTarget ? "text-emerald-600" : ""}>
+                                {todayCount}/{dailyTarget} today
+                              </span>
+                              <span>•</span>
+                            </>
+                          )}
                           <span>{checkInsThisWeek.length}/{weekTarget} this week</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {!todayDone && goal.cadenceType === "DAILY" && (
+                        {!todayDone && goal.cadenceType === "DAILY" && !hasMultiTarget && (
                           <CheckInButton
                             goalId={goal.id}
                             completed={false}
@@ -372,7 +391,15 @@ export default async function DashboardPage() {
                         <CheckInButton
                           goalId={goal.id}
                           completed={todayDone && !todayPartial}
-                          label={todayPartial ? "Upgrade" : "Complete"}
+                          label={
+                            hasMultiTarget
+                              ? todayDone 
+                                ? "Done" 
+                                : `+1 (${todayCount}/${dailyTarget})`
+                              : todayPartial 
+                                ? "Upgrade" 
+                                : "Complete"
+                          }
                         />
                       </div>
                     </div>

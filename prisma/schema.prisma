@@ -69,6 +69,7 @@ model Goal {
   notes            String?
   cadenceType      CadenceType
   weeklyTarget     Int?
+  dailyTarget      Int          @default(1)  // How many times per day (for multi-completion goals)
   pointsPerCheckIn Int          @default(10)
   weeklyTargetBonus Int         @default(20)
   streakBonus      Int          @default(5)

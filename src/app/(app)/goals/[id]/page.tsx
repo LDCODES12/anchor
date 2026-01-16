@@ -18,6 +18,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CheckInButton } from "@/components/check-in-button"
+import { DeleteGoalButton } from "@/components/delete-goal-button"
 import { TinyHeatmap } from "@/components/tiny-heatmap"
 import { MonthlyHeatmap } from "@/components/monthly-heatmap"
 import { Sparkline } from "@/components/sparkline"
@@ -54,7 +55,9 @@ export default async function GoalDetailPage({
   const dateKeys = summarizeDailyCheckIns(checkIns)
   const currentDailyStreak = computeDailyStreak(dateKeys, todayKey, user.timezone)
   const bestDailyStreak = computeBestDailyStreak(dateKeys, user.timezone)
-  const consistency = computeConsistencyPercentage(dateKeys, todayKey, user.timezone, 30)
+  const consistency = computeConsistencyPercentage(
+    dateKeys, todayKey, user.timezone, 30, goal.createdAt, goal.dailyTarget ?? 1
+  )
   const gracefulStreak = computeGracefulStreak(dateKeys, todayKey, user.timezone, goal.streakFreezes)
   const recentCompletions = countRecentCompletions(dateKeys, todayKey, user.timezone, 30)
   const softMessage = !todayDone ? getSoftFailureMessage(consistency, recentCompletions, 30) : null
@@ -118,6 +121,7 @@ export default async function GoalDetailPage({
             completed={todayDone && !todayPartial} 
             label={todayPartial ? "Upgrade" : "Complete"} 
           />
+          <DeleteGoalButton goalId={goal.id} goalName={goal.name} />
         </div>
       </div>
 

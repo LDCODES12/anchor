@@ -145,26 +145,53 @@ export function summarizeDailyCheckIns(
 /**
  * Compute consistency percentage over the last N days
  * Returns a value 0-100 representing % of days with check-ins
+ * 
+ * If goalCreatedAt is provided, only counts days since goal creation
+ * If dailyTarget > 1, counts check-ins per day and requires target to be met
  */
 export function computeConsistencyPercentage(
   checkInDateKeys: string[],
   todayKey: string,
   timeZone: string,
-  days: number = 30
+  days: number = 30,
+  goalCreatedAt?: Date,
+  dailyTarget: number = 1
 ): number {
-  const set = new Set(checkInDateKeys)
+  // Count occurrences of each date key
+  const countByDate = new Map<string, number>()
+  for (const key of checkInDateKeys) {
+    countByDate.set(key, (countByDate.get(key) ?? 0) + 1)
+  }
+  
   let completed = 0
+  let totalDays = 0
   let cursor = todayKey
+  
+  // Calculate the earliest date key to consider (goal creation date)
+  const createdDateKey = goalCreatedAt 
+    ? getLocalDateKey(goalCreatedAt, timeZone) 
+    : null
 
   for (let i = 0; i < days; i++) {
-    if (set.has(cursor)) {
+    // Stop if we've gone past the goal creation date
+    if (createdDateKey && cursor < createdDateKey) {
+      break
+    }
+    
+    totalDays++
+    const countOnDay = countByDate.get(cursor) ?? 0
+    
+    // For daily targets > 1, check if target was met
+    if (countOnDay >= dailyTarget) {
       completed++
     }
+    
     const cursorDate = parseISO(cursor)
     cursor = getLocalDateKey(subDays(cursorDate, 1), timeZone)
   }
 
-  return Math.round((completed / days) * 100)
+  if (totalDays === 0) return 100 // Goal was just created
+  return Math.round((completed / totalDays) * 100)
 }
 
 /**

@@ -26,6 +26,10 @@ export const createGoalSchema = z.object({
     (value) => (value === "" || value == null ? undefined : value),
     z.coerce.number().int().min(1).max(14).optional()
   ),
+  dailyTarget: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.coerce.number().int().min(1).max(10).optional()
+  ),
   notes: z.string().max(280).optional(),
 })
 
