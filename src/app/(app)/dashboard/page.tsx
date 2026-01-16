@@ -253,14 +253,22 @@ export default async function DashboardPage() {
               </div>
             ) : (
             todayGoals.map(({ goal, todayDone, checkInsThisWeek, checkIns }) => {
-                const target =
+                const isWeekly =
                   goal.cadenceType === "WEEKLY" && goal.weeklyTarget
-                    ? goal.weeklyTarget
-                    : 1
-                const progress = Math.min(
-                  100,
-                  Math.round((checkInsThisWeek.length / target) * 100)
-                )
+                const target = isWeekly ? goal.weeklyTarget : 1
+                const displayCount = isWeekly
+                  ? checkInsThisWeek.length
+                  : todayDone
+                  ? 1
+                  : 0
+                const progress = isWeekly
+                  ? Math.min(
+                      100,
+                      Math.round((checkInsThisWeek.length / target) * 100)
+                    )
+                  : todayDone
+                  ? 100
+                  : 0
                 const last7Keys = Array.from({ length: 7 }).map((_, index) =>
                   getLocalDateKey(subDays(now, 6 - index), user.timezone)
                 )
@@ -302,10 +310,15 @@ export default async function DashboardPage() {
                           {goal.cadenceType === "DAILY" ? "Today" : "This week"}
                         </span>
                         <span>
-                          {checkInsThisWeek.length}/{target}
+                          {displayCount}/{target}
                         </span>
                       </div>
                       <Progress value={progress} />
+                      {goal.cadenceType === "DAILY" ? (
+                        <div className="text-[11px] text-muted-foreground">
+                          Week total: {checkInsThisWeek.length}/7
+                        </div>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">

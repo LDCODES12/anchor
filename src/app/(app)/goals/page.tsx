@@ -63,14 +63,22 @@ export default async function GoalsPage() {
               const weekCheckIns = checkIns.filter(
                 (check) => check.weekKey === weekKey
               )
-              const target =
+              const isWeekly =
                 goal.cadenceType === "WEEKLY" && goal.weeklyTarget
-                  ? goal.weeklyTarget
-                  : 1
-              const progress = Math.min(
-                100,
-                Math.round((weekCheckIns.length / target) * 100)
-              )
+              const target = isWeekly ? goal.weeklyTarget : 1
+              const displayCount = isWeekly
+                ? weekCheckIns.length
+                : todayDone
+                ? 1
+                : 0
+              const progress = isWeekly
+                ? Math.min(
+                    100,
+                    Math.round((weekCheckIns.length / target) * 100)
+                  )
+                : todayDone
+                ? 100
+                : 0
               const streak = computeDailyStreak(
                 summarizeDailyCheckIns(checkIns),
                 todayKey
@@ -109,10 +117,15 @@ export default async function GoalsPage() {
                         {goal.cadenceType === "DAILY" ? "Today" : "This week"}
                       </span>
                       <span>
-                        {weekCheckIns.length}/{target}
+                        {displayCount}/{target}
                       </span>
                     </div>
                     <Progress value={progress} />
+                    {goal.cadenceType === "DAILY" ? (
+                      <div className="text-[11px] text-muted-foreground">
+                        Week total: {weekCheckIns.length}/7
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )
