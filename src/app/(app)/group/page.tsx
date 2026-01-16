@@ -248,6 +248,10 @@ export default async function GroupPage() {
                   (goal) => goal.checkedToday
                 ).length
                 const totalGoals = entry.goals.length
+                const needsReminder = entry.goals.some(
+                  (goal) => goal.goal.cadenceType === "DAILY" && !goal.checkedToday
+                )
+
                 return (
                   <div
                     key={entry.member.id}
@@ -256,27 +260,30 @@ export default async function GroupPage() {
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{entry.member.user.name}</span>
                       <span className="text-xs text-muted-foreground">
-                        {totalGoals === 0
-                          ? "No goals"
-                          : `${completedCount}/${totalGoals} today`}
+                        {totalGoals === 0 ? "No goals" : `${completedCount} completed`}
                       </span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                       {entry.goals.length === 0 ? (
                         <span className="text-muted-foreground">No goals yet.</span>
                       ) : (
-                        entry.goals.slice(0, 3).map((goal) => (
-                          <span
-                            key={goal.goal.id}
-                            className={`rounded-full px-2 py-1 ${
-                              goal.checkedToday
-                                ? "bg-emerald-500/15 text-emerald-600"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            {goal.goal.name}
-                          </span>
-                        ))
+                        entry.goals.slice(0, 3).map((goal) => {
+                          const isDaily = goal.goal.cadenceType === "DAILY"
+                          const className = goal.checkedToday
+                            ? "bg-emerald-500/15 text-emerald-600"
+                            : isDaily
+                            ? "bg-amber-500/15 text-amber-600"
+                            : "bg-muted text-muted-foreground"
+
+                          return (
+                            <span
+                              key={goal.goal.id}
+                              className={`rounded-full px-2 py-1 ${className}`}
+                            >
+                              {goal.goal.name}
+                            </span>
+                          )
+                        })
                       )}
                       {entry.goals.length > 3 ? (
                         <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">
@@ -284,7 +291,7 @@ export default async function GroupPage() {
                         </span>
                       ) : null}
                     </div>
-                    {entry.goals.some((goal) => !goal.checkedToday) ? (
+                    {needsReminder ? (
                       <div className="mt-2">
                         <RemindButton name={entry.member.user.name} />
                       </div>
