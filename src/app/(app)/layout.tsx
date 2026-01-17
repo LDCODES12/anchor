@@ -91,7 +91,7 @@ export default async function AppLayout({
               href="/dashboard" 
               className="text-lg font-semibold hover:opacity-80 transition-opacity"
             >
-              GoalGrid
+              Anchor
             </Link>
             <nav className="hidden items-center gap-1 sm:flex">
               {navItems.map((item) => (

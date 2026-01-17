@@ -392,7 +392,7 @@ export async function logHistoricalCheckInAction({
   }
 
   // Note: We intentionally allow dates before the goal was created
-  // This lets users backfill historical data from before they started using GoalGrid
+  // This lets users backfill historical data from before they started using Anchor
 
   // Validate count
   const dailyTarget = goal.dailyTarget ?? 1

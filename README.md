@@ -1,6 +1,6 @@
-# GoalGrid
+# Anchor
 
-GoalGrid is a science-based, gamified accountability app for small groups of friends.
+Anchor is a science-based, gamified accountability app for small groups of friends.
 Track daily habits and weekly targets, keep streaks alive, and stay motivated together.
 
 ## Tech stack
@@ -45,8 +45,8 @@ Visit `http://localhost:3000`.
 
 ## Demo accounts
 
-- `alice@goalgrid.dev` / `password123`
-- `ben@goalgrid.dev` / `password123`
+- `alice@anchor.app` / `password123`
+- `ben@anchor.app` / `password123`
 
 ## Tests
 

@@ -25,7 +25,7 @@ export default async function Home() {
       {/* Header */}
       <header className="fixed top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
-          <div className="text-lg font-semibold">GoalGrid</div>
+          <div className="text-lg font-semibold">Anchor</div>
           <div className="flex items-center gap-3">
             <Link 
               href="/auth/signin" 
@@ -58,7 +58,7 @@ export default async function Home() {
             </h1>
             
             <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
-              GoalGrid uses science-backed accountability to help you and your friends 
+              Anchor uses science-backed accountability to help you and your friends 
               stay consistent. No guilt trips—just progress you can see.
             </p>
             
@@ -307,7 +307,7 @@ export default async function Home() {
       {/* Footer */}
       <footer className="border-t py-8">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-muted-foreground md:flex-row">
-          <span>© {new Date().getFullYear()} GoalGrid</span>
+          <span>© {new Date().getFullYear()} Anchor</span>
           <div className="flex items-center gap-6">
             <Link href="#" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="#" className="hover:text-foreground transition-colors">Terms</Link>

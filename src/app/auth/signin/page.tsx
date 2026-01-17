@@ -40,7 +40,7 @@ function SignInForm() {
       <div className="mb-6 space-y-1">
         <h1 className="text-2xl font-semibold">Welcome back</h1>
         <p className="text-sm text-muted-foreground">
-          Sign in to your GoalGrid account.
+          Sign in to your Anchor account.
         </p>
       </div>
       <form className="space-y-4" onSubmit={handleSubmit}>

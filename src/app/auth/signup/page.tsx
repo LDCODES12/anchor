@@ -48,7 +48,7 @@ function SignUpForm() {
       <div className="mb-6 space-y-1">
         <h1 className="text-2xl font-semibold">Create your account</h1>
         <p className="text-sm text-muted-foreground">
-          Join GoalGrid and start tracking together.
+          Join Anchor and start tracking together.
         </p>
       </div>
       <form className="space-y-4" onSubmit={handleSubmit}>

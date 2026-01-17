@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GoalGrid — Science-based accountability",
+  title: "Anchor — Science-based accountability",
   description:
-    "GoalGrid is a science-based, gamified accountability app for goals and habits with friends.",
+    "Anchor is a science-based, gamified accountability app for goals and habits with friends.",
 }
 
 export default function RootLayout({
