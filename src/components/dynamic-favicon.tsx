@@ -14,22 +14,25 @@ export function DynamicFavicon({ completionPercent, points }: DynamicFaviconProp
     // Create canvas if it doesn't exist
     if (!canvasRef.current) {
       canvasRef.current = document.createElement("canvas")
-      canvasRef.current.width = 64
-      canvasRef.current.height = 64
+      canvasRef.current.width = 32
+      canvasRef.current.height = 32
     }
 
     const canvas = canvasRef.current
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    // Clear canvas
-    ctx.clearRect(0, 0, 64, 64)
+    const size = 32
+
+    // Clear canvas with white background
+    ctx.fillStyle = "#ffffff"
+    ctx.fillRect(0, 0, size, size)
 
     // Background circle (track)
-    const centerX = 32
-    const centerY = 24
-    const radius = 20
-    const lineWidth = 6
+    const centerX = size / 2
+    const centerY = size / 2
+    const radius = 12
+    const lineWidth = 4
 
     // Draw background track
     ctx.beginPath()
@@ -61,44 +64,24 @@ export function DynamicFavicon({ completionPercent, points }: DynamicFaviconProp
 
     // Draw percentage text in center
     ctx.fillStyle = "#1f2937" // gray-800
-    ctx.font = "bold 14px system-ui, sans-serif"
+    ctx.font = "bold 9px Arial, sans-serif"
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
-    ctx.fillText(`${Math.round(completionPercent)}%`, centerX, centerY)
-
-    // Draw points below
-    ctx.fillStyle = "#6b7280" // gray-500
-    ctx.font = "bold 11px system-ui, sans-serif"
-    ctx.textAlign = "center"
-    ctx.textBaseline = "top"
-    
-    // Format points (e.g., 1.2k for 1234)
-    const pointsText = points >= 1000 
-      ? `${(points / 1000).toFixed(1)}k` 
-      : `${points}`
-    ctx.fillText(pointsText, centerX, 50)
+    ctx.fillText(`${Math.round(completionPercent)}`, centerX, centerY)
 
     // Convert canvas to favicon
     const faviconUrl = canvas.toDataURL("image/png")
 
-    // Update or create favicon link
-    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
-    if (!link) {
-      link = document.createElement("link")
-      link.rel = "icon"
-      link.type = "image/png"
-      document.head.appendChild(link)
-    }
-    link.href = faviconUrl
+    // Remove any existing favicon links first
+    const existingLinks = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]')
+    existingLinks.forEach(link => link.remove())
 
-    // Also update apple-touch-icon for iOS
-    let appleLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
-    if (!appleLink) {
-      appleLink = document.createElement("link")
-      appleLink.rel = "apple-touch-icon"
-      document.head.appendChild(appleLink)
-    }
-    appleLink.href = faviconUrl
+    // Create new favicon link
+    const link = document.createElement("link")
+    link.rel = "icon"
+    link.type = "image/png"
+    link.href = faviconUrl
+    document.head.appendChild(link)
 
   }, [completionPercent, points])
 
