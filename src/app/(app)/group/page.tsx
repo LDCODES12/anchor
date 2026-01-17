@@ -152,8 +152,10 @@ export default async function GroupPage() {
         totalTarget += goal.weeklyTarget
         totalCompleted += Math.min(checkInsThisWeek.length, goal.weeklyTarget)
       } else {
-        totalTarget += 7
-        totalCompleted += Math.min(checkInsThisWeek.length, 7)
+        // Daily goals: target is dailyTarget * 7 (e.g., 2x/day = 14/week)
+        const weeklyTargetForDaily = goalDailyTarget * 7
+        totalTarget += weeklyTargetForDaily
+        totalCompleted += Math.min(checkInsThisWeek.length, weeklyTargetForDaily)
       }
     }
 
@@ -405,7 +407,9 @@ export default async function GroupPage() {
                     <div className="divide-y divide-dashed">
                       {entry.goals.map((g) => {
                         const isDaily = g.goal.cadenceType === "DAILY"
-                        const target = isDaily ? 7 : (g.goal.weeklyTarget ?? 1)
+                        const dailyTarget = g.goal.dailyTarget ?? 1
+                        // Daily goals: target is dailyTarget * 7 (e.g., 2x/day = 14/week)
+                        const target = isDaily ? (dailyTarget * 7) : (g.goal.weeklyTarget ?? 1)
                         const progress = Math.min(100, Math.round((g.weekCount / target) * 100))
 
                         return (
