@@ -48,10 +48,17 @@ export function CheckInButton({
         toast.error(result.error ?? "Could not log completion.")
         return
       }
+      // Build toast message with points
+      const pointsEarned = result.pointsEarned ?? 0
+      const streakBonusApplied = result.streakBonusApplied ?? false
+      
       if (result.streakMilestone) {
-        toast.success(`Streak milestone: ${result.streakMilestone} days!`)
+        toast.success(`Streak milestone: ${result.streakMilestone} days!${pointsEarned > 0 ? ` +${pointsEarned} pts` : ""}`)
         setShowConfetti(true)
         setTimeout(() => setShowConfetti(false), 1200)
+      } else if (pointsEarned > 0) {
+        const bonusLabel = streakBonusApplied ? " (streak bonus!)" : ""
+        toast.success(`Done! +${pointsEarned} pts${bonusLabel}`)
       } else {
         toast.success("Done!")
       }

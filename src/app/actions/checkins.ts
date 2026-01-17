@@ -2,12 +2,20 @@
 
 import { revalidatePath } from "next/cache"
 import { getServerSession } from "next-auth"
-import { parseISO } from "date-fns"
+import { parseISO, addDays } from "date-fns"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { checkInSchema } from "@/lib/validators"
-import { getLocalDateKey, getWeekKey } from "@/lib/time"
-import { computeDailyStreak, summarizeDailyCheckIns } from "@/lib/scoring"
+import { getLocalDateKey, getWeekKey, getWeekStart, getWeekEnd } from "@/lib/time"
+import { computeDailyStreak, summarizeDailyCheckIns, computeGracefulStreak } from "@/lib/scoring"
+import {
+  GoalForPoints,
+  computeDailyGoalProgress,
+  computeWeeklyGoalProgress,
+  calculatePointsToAward,
+  isGoalActiveForWeek,
+  milliToDisplay,
+} from "@/lib/points"
 
 /**
  * Undo the most recent check-in for a goal today
@@ -85,7 +93,7 @@ export async function checkInGoalAction(formData: FormData) {
   const goal = await prisma.goal.findFirst({
     where: {
       id: parsed.data.goalId,
-      ownerId: session.user.id,  // Users can only check in to their own goals
+      ownerId: session.user.id,
     },
   })
   if (!goal) return { ok: false, error: "Goal not found or not yours." }
@@ -106,12 +114,11 @@ export async function checkInGoalAction(formData: FormData) {
   const dailyTarget = goal.dailyTarget ?? 1
   const todayCount = todayCheckIns.length
   
-  // For single-target goals, use the old partial upgrade logic
+  // For single-target goals, handle partial upgrade
   if (dailyTarget === 1) {
     const existing = todayCheckIns[0]
     if (existing) {
       if (existing.isPartial && !isPartial) {
-        // Upgrade partial to full completion
         await prisma.checkIn.update({
           where: { id: existing.id },
           data: { isPartial: false, timestamp: now },
@@ -120,61 +127,185 @@ export async function checkInGoalAction(formData: FormData) {
         revalidatePath("/group")
         revalidatePath("/goals")
         revalidatePath(`/goals/${goal.id}`)
-        return { ok: true, upgraded: true }
+        return { ok: true, upgraded: true, pointsEarned: 0, streakBonusApplied: false }
       }
       return { ok: false, error: "Already completed today." }
     }
   } else {
-    // For multi-target goals, check if we've hit the daily target
     if (todayCount >= dailyTarget) {
       return { ok: false, error: `Already completed ${dailyTarget}x today.` }
     }
   }
 
-  await prisma.checkIn.create({
-    data: {
-      goalId: goal.id,
-      userId: session.user.id,
-      timestamp: now,
-      localDateKey,
-      weekKey,
-      isPartial: dailyTarget === 1 ? isPartial : false, // Only support partial for single-target goals
-    },
-  })
+  // === TRANSACTION: Create check-in and award points ===
+  const result = await prisma.$transaction(async (tx) => {
+    // 1. Create the check-in
+    const checkIn = await tx.checkIn.create({
+      data: {
+        goalId: goal.id,
+        userId: session.user.id,
+        timestamp: now,
+        localDateKey,
+        weekKey,
+        isPartial: dailyTarget === 1 ? isPartial : false,
+      },
+    })
 
-  let streakMilestone: number | null = null
-  if (goal.cadenceType === "DAILY") {
-    const checkIns = await prisma.checkIn.findMany({
+    // 2. Get all check-ins for this goal this week (for progress calculation)
+    const weekCheckIns = await tx.checkIn.findMany({
       where: {
         goalId: goal.id,
         userId: session.user.id,
+        weekKey,
       },
       select: { localDateKey: true },
     })
-    const streak = computeDailyStreak(
-      summarizeDailyCheckIns(checkIns),
-      localDateKey,
-      user.timezone,
-      goal.dailyTarget ?? 1
-    )
-    if ([7, 14, 30].includes(streak)) {
-      streakMilestone = streak
+
+    // 3. Compute P_before and P_after
+    const weekStart = getWeekStart(now, user.timezone)
+    const weekDates: string[] = []
+    for (let i = 0; i < 7; i++) {
+      weekDates.push(getLocalDateKey(addDays(weekStart, i), user.timezone))
     }
-  }
+
+    // Group check-ins by date
+    const checkInsByDate = new Map<string, number>()
+    for (const ci of weekCheckIns) {
+      checkInsByDate.set(ci.localDateKey, (checkInsByDate.get(ci.localDateKey) ?? 0) + 1)
+    }
+
+    // P_after includes the new check-in, P_before excludes it
+    const checkInsByDateBefore = new Map(checkInsByDate)
+    const currentDayCount = checkInsByDateBefore.get(localDateKey) ?? 0
+    if (currentDayCount > 0) {
+      checkInsByDateBefore.set(localDateKey, currentDayCount - 1)
+    }
+
+    let P_before: number, P_after: number
+    if (goal.cadenceType === "DAILY") {
+      P_before = computeDailyGoalProgress(checkInsByDateBefore, dailyTarget, weekDates)
+      P_after = computeDailyGoalProgress(checkInsByDate, dailyTarget, weekDates)
+    } else {
+      const weeklyTarget = goal.weeklyTarget ?? 1
+      P_before = computeWeeklyGoalProgress(weekCheckIns.length - 1, weeklyTarget)
+      P_after = computeWeeklyGoalProgress(weekCheckIns.length, weeklyTarget)
+    }
+
+    // 4. Get active goals for the week
+    const allGoals = await tx.goal.findMany({
+      where: { ownerId: session.user.id, active: true },
+      select: { id: true, cadenceType: true, dailyTarget: true, weeklyTarget: true, active: true, createdAt: true },
+    })
+
+    // Get check-in counts for each goal this week
+    const goalCheckInCounts = await tx.checkIn.groupBy({
+      by: ["goalId"],
+      where: { userId: session.user.id, weekKey },
+      _count: true,
+    })
+    const countsByGoal = new Map(goalCheckInCounts.map((g) => [g.goalId, g._count]))
+
+    // Filter to active-for-week
+    const weekEnd = getWeekEnd(now, user.timezone)
+    const activeGoals: GoalForPoints[] = allGoals.filter((g) =>
+      isGoalActiveForWeek(
+        g as GoalForPoints,
+        weekEnd,
+        (countsByGoal.get(g.id) ?? 0) > 0
+      )
+    ) as GoalForPoints[]
+
+    // 5. Calculate streak for multiplier
+    const allCheckIns = await tx.checkIn.findMany({
+      where: { goalId: goal.id, userId: session.user.id },
+      select: { localDateKey: true },
+    })
+    const dateKeys = summarizeDailyCheckIns(allCheckIns)
+    const gracefulStreak = computeGracefulStreak(dateKeys, localDateKey, user.timezone, goal.streakFreezes, dailyTarget)
+    const streakDays = gracefulStreak.currentStreak
+    const freezeUsedRecently = gracefulStreak.freezesUsed > 0
+
+    // 6. Get points already earned this week
+    const alreadyEarned = await tx.pointLedger.aggregate({
+      where: { userId: session.user.id, weekKey },
+      _sum: { pointsMilli: true },
+    })
+    const pointsAlreadyEarnedMilli = alreadyEarned._sum.pointsMilli ?? 0
+
+    // 7. Calculate points to award
+    const goalForPoints: GoalForPoints = {
+      id: goal.id,
+      cadenceType: goal.cadenceType,
+      dailyTarget: goal.dailyTarget,
+      weeklyTarget: goal.weeklyTarget,
+      active: goal.active,
+      createdAt: goal.createdAt,
+    }
+
+    const { pointsMilli, streakBonusApplied } = calculatePointsToAward(
+      goalForPoints,
+      P_before,
+      P_after,
+      activeGoals,
+      streakDays,
+      freezeUsedRecently,
+      pointsAlreadyEarnedMilli
+    )
+
+    // 8. Insert ledger entry (idempotent) and update user totals
+    if (pointsMilli > 0) {
+      await tx.pointLedger.create({
+        data: {
+          userId: session.user.id,
+          goalId: goal.id,
+          weekKey,
+          localDate: localDateKey,
+          pointsMilli,
+          reason: "CHECKIN_POINTS",
+          sourceId: checkIn.id,
+        },
+      })
+
+      // Update user totals
+      const shouldResetWeek = user.pointsWeekKey !== weekKey
+      await tx.user.update({
+        where: { id: session.user.id },
+        data: {
+          pointsLifetimeMilli: { increment: pointsMilli },
+          pointsWeekMilli: shouldResetWeek ? pointsMilli : { increment: pointsMilli },
+          pointsWeekKey: weekKey,
+        },
+      })
+    }
+
+    // Check for streak milestone
+    let streakMilestone: number | null = null
+    if ([7, 14, 30].includes(streakDays)) {
+      streakMilestone = streakDays
+    }
+
+    return {
+      checkIn,
+      pointsMilli,
+      streakBonusApplied,
+      streakMilestone,
+      newCount: todayCount + 1,
+    }
+  })
 
   revalidatePath("/dashboard")
   revalidatePath("/group")
   revalidatePath("/goals")
   revalidatePath(`/goals/${goal.id}`)
-  
-  // Return how many completions they now have today (for multi-target goals)
-  const newCount = todayCount + 1
-  return { 
-    ok: true, 
-    streakMilestone,
-    todayCount: newCount,
+
+  return {
+    ok: true,
+    streakMilestone: result.streakMilestone,
+    todayCount: result.newCount,
     dailyTarget,
-    isComplete: newCount >= dailyTarget,
+    isComplete: result.newCount >= dailyTarget,
+    pointsEarned: milliToDisplay(result.pointsMilli),
+    streakBonusApplied: result.streakBonusApplied,
   }
 }
 

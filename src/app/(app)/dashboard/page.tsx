@@ -168,41 +168,19 @@ export default async function DashboardPage() {
     (sum, item) => sum + item.checkIns.length,
     0
   )
-  const weeklyScore = todayGoals.reduce((sum, item) => {
-    return (
-      sum +
-      computeWeeklyPoints({
-        goal: {
-          cadenceType: item.goal.cadenceType,
-          pointsPerCheckIn: item.goal.pointsPerCheckIn,
-          weeklyTarget: item.goal.weeklyTarget,
-          weeklyTargetBonus: item.goal.weeklyTargetBonus,
-          streakBonus: item.goal.streakBonus,
-        },
-        checkInsThisWeek: item.checkInsThisWeek.length,
-        dailyStreak: item.dailyStreak,
-      })
-    )
-  }, 0)
-  const lastWeekScore = todayGoals.reduce((sum, item) => {
-    const lastWeekCheckIns = item.checkIns.filter(
-      (check) => check.weekKey === lastWeekKey
-    )
-    return (
-      sum +
-      computeWeeklyPoints({
-        goal: {
-          cadenceType: item.goal.cadenceType,
-          pointsPerCheckIn: item.goal.pointsPerCheckIn,
-          weeklyTarget: item.goal.weeklyTarget,
-          weeklyTargetBonus: item.goal.weeklyTargetBonus,
-          streakBonus: item.goal.streakBonus,
-        },
-        checkInsThisWeek: lastWeekCheckIns.length,
-        dailyStreak: item.dailyStreak,
-      })
-    )
-  }, 0)
+  
+  // Use new points system from user stored values
+  const weeklyScore = user.pointsWeekKey === weekKey 
+    ? Math.floor(user.pointsWeekMilli / 1000)
+    : 0
+  const lifetimePoints = Math.floor(user.pointsLifetimeMilli / 1000)
+  
+  // Get last week's points from ledger for trend comparison
+  const lastWeekLedger = await prisma.pointLedger.aggregate({
+    where: { userId: user.id, weekKey: lastWeekKey },
+    _sum: { pointsMilli: true },
+  })
+  const lastWeekScore = Math.floor((lastWeekLedger._sum.pointsMilli ?? 0) / 1000)
 
   const maxDailyStreak = Math.max(
     0,
@@ -334,9 +312,15 @@ export default async function DashboardPage() {
       <div className="rounded-2xl border bg-gradient-to-br from-card to-card/50 p-6 shadow-sm" data-focus-hide="true">
         <div className="grid gap-6 md:grid-cols-[1.5fr_1fr] md:items-center">
           <div className="space-y-4">
-            <div>
-              <div className="text-sm font-medium text-muted-foreground">This week</div>
-              <div className="mt-1 text-4xl font-bold tracking-tight">{weeklyScore} <span className="text-lg font-normal text-muted-foreground">points</span></div>
+            <div className="flex items-baseline gap-4">
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">This week</div>
+                <div className="mt-1 text-4xl font-bold tracking-tight">{weeklyScore} <span className="text-lg font-normal text-muted-foreground">points</span></div>
+              </div>
+              <div className="hidden sm:block border-l pl-4 ml-2">
+                <div className="text-sm font-medium text-muted-foreground">Lifetime</div>
+                <div className="mt-1 text-2xl font-semibold text-muted-foreground">{lifetimePoints.toLocaleString()}</div>
+              </div>
             </div>
             
             <div className="flex flex-wrap gap-4 text-sm">

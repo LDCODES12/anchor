@@ -17,6 +17,11 @@ enum CadenceType {
   WEEKLY
 }
 
+enum PointReason {
+  CHECKIN_POINTS
+  ADJUSTMENT       // For manual corrections if ever needed
+}
+
 model User {
   id           String        @id @default(cuid())
   name         String
@@ -29,12 +34,18 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
+  // Points system
+  pointsLifetimeMilli Int     @default(0)  // Total points earned (milli-points for precision)
+  pointsWeekMilli     Int     @default(0)  // Points earned this week
+  pointsWeekKey       String?              // Which week the weekly points are for
+
   members  GroupMember[]
   goals    Goal[]
   checkIns CheckIn[]
   sentReminders     Reminder[] @relation("SentReminders")
   receivedReminders Reminder[] @relation("ReceivedReminders")
   cheers   Cheer[]
+  ledgerEntries PointLedger[]
 
   accounts Account[]
   sessions Session[]
@@ -86,6 +97,7 @@ model Goal {
   owner    User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   group    Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
   checkIns CheckIn[]
+  ledgerEntries PointLedger[]
 
   @@index([groupId])
   @@index([ownerId])
@@ -176,4 +188,25 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Points system ledger for idempotent, auditable points awards
+model PointLedger {
+  id          String      @id @default(cuid())
+  userId      String
+  goalId      String?
+  weekKey     String
+  localDate   String?     // For daily goals, the specific date
+  pointsMilli Int         // Points * 1000 for precision (avoids "+0" on small increments)
+  reason      PointReason
+  sourceId    String      // checkInId for CHECKIN_POINTS
+  createdAt   DateTime    @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal? @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, reason, sourceId])  // Idempotency: prevent duplicate awards
+  @@index([userId, weekKey])
+  @@index([userId, createdAt])
+  @@index([goalId, weekKey])
 }
