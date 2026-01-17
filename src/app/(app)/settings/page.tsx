@@ -56,6 +56,7 @@ export default async function SettingsPage() {
         reminderTime={user.reminderTime}
         reminderFrequency={user.reminderFrequency as "DAILY" | "WEEKDAYS"}
         smartTiming={smartTiming}
+        nickname={user.nickname}
       />
 
       <Card>

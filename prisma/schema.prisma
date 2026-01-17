@@ -25,6 +25,7 @@ enum PointReason {
 model User {
   id           String        @id @default(cuid())
   name         String
+  nickname     String?                              // Display name for group members
   email        String        @unique
   passwordHash String
   timezone     String        @default("America/Chicago")

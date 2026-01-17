@@ -58,7 +58,7 @@ export default async function DashboardPage() {
   })
   const reminderItems = reminders.map((reminder) => ({
     id: reminder.id,
-    senderName: reminder.sender.name,
+    senderName: reminder.sender.nickname ?? reminder.sender.name,
     message: reminder.message,
   }))
 
@@ -69,7 +69,7 @@ export default async function DashboardPage() {
       createdAt: { gte: subDays(new Date(), 7) },
     },
     include: {
-      sender: { select: { name: true } },
+      sender: { select: { name: true, nickname: true } },
       checkIn: { include: { goal: { select: { name: true } } } },
     },
     orderBy: { createdAt: "desc" },
@@ -303,7 +303,7 @@ export default async function DashboardPage() {
                 >
                   <span>
                     <span className="text-emerald-600 dark:text-emerald-400">👏</span>{" "}
-                    <span className="font-medium">{cheer.sender.name}</span>
+                    <span className="font-medium">{cheer.sender.nickname ?? cheer.sender.name}</span>
                     <span className="text-muted-foreground"> cheered your </span>
                     <span className="font-medium">{cheer.checkIn.goal.name}</span>
                     <span className="text-muted-foreground"> completion</span>

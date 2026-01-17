@@ -182,10 +182,14 @@ export default async function GroupPage() {
 
   const pulseCompleted = sortedLeaderboard.filter((entry) => entry.completedToday).length
 
+  // Helper to get display name (nickname or full name)
+  const getDisplayName = (user: { nickname?: string | null; name: string }) => 
+    user.nickname ?? user.name
+
   // Compute weekly summary
   const weeklySummaryMembers = group.members.map((member) => ({
     id: member.userId,
-    name: member.user.name,
+    name: getDisplayName(member.user),
     goals: goals
       .filter((g) => g.ownerId === member.userId)
       .map((g) => ({
@@ -236,7 +240,7 @@ export default async function GroupPage() {
               {index === 0 && (
                 <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Top Performer</span>
               )}
-              <div className="font-medium">{entry.member.user.name}</div>
+              <div className="font-medium">{getDisplayName(entry.member.user)}</div>
               <CompletionRing
                 value={entry.completionPct}
                 label="Weekly completion"
@@ -295,7 +299,7 @@ export default async function GroupPage() {
                   <div key={entry.member.id} className="px-3 py-2">
                     {/* Member name row */}
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-sm font-medium">{entry.member.user.name}</span>
+                      <span className="text-sm font-medium">{getDisplayName(entry.member.user)}</span>
                       {entry.goals.length > 0 && (
                         <span className="text-[11px] text-muted-foreground tabular-nums">
                           {totalWeeklyDone}/{totalWeeklyTarget}
@@ -336,7 +340,7 @@ export default async function GroupPage() {
                               {showRemind && (
                                 <InlineRemind
                                   recipientId={entry.member.user.id}
-                                  recipientName={entry.member.user.name}
+                                  recipientName={getDisplayName(entry.member.user)}
                                   goalName={g.goal.name}
                                 />
                               )}
@@ -372,7 +376,7 @@ export default async function GroupPage() {
                 <div key={entry.member.id}>
                   {/* Member header - single line */}
                   <div className="flex items-center justify-between px-3 py-2 bg-muted/30">
-                    <span className="text-sm font-medium">{entry.member.user.name}</span>
+                    <span className="text-sm font-medium">{getDisplayName(entry.member.user)}</span>
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {leaderboardEntry?.totalPoints ?? 0} pts · #{rank}
                     </span>
@@ -454,7 +458,7 @@ export default async function GroupPage() {
                       className="flex items-center justify-between px-3 py-1.5 text-xs"
                     >
                       <span>
-                        <span className="text-muted-foreground">{item.user.name}</span>
+                        <span className="text-muted-foreground">{getDisplayName(item.user)}</span>
                         {" · "}
                         <span className="font-medium">{item.goal.name}</span>
                       </span>
@@ -462,7 +466,7 @@ export default async function GroupPage() {
                         {!isOwnCheckIn && (
                           <CheerButton 
                             checkInId={item.id}
-                            userName={item.user.name}
+                            userName={getDisplayName(item.user)}
                             hasCheered={hasCheered}
                           />
                         )}

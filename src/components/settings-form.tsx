@@ -1,11 +1,12 @@
 "use client"
 
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { updateReminderAction, updateTimezoneAction } from "@/app/actions/settings"
+import { updateReminderAction, updateTimezoneAction, updateNicknameAction } from "@/app/actions/settings"
 import { leaveGroupAction } from "@/app/actions/groups"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -51,13 +52,16 @@ export function SettingsForm({
   reminderTime,
   reminderFrequency,
   smartTiming,
+  nickname,
 }: {
   currentTimezone: string
   reminderTime: string
   reminderFrequency: "DAILY" | "WEEKDAYS"
   smartTiming?: SmartTiming
+  nickname?: string | null
 }) {
   const [isPending, startTransition] = useTransition()
+  const [nicknameValue, setNicknameValue] = useState(nickname ?? "")
   const router = useRouter()
 
   const handleTimezone = (value: string) => {
@@ -70,6 +74,20 @@ export function SettingsForm({
         return
       }
       toast.success("Timezone updated.")
+      router.refresh()
+    })
+  }
+
+  const handleNickname = () => {
+    const formData = new FormData()
+    formData.set("nickname", nicknameValue)
+    startTransition(async () => {
+      const result = await updateNicknameAction(formData)
+      if (!result.ok) {
+        toast.error(result.error ?? "Could not update nickname.")
+        return
+      }
+      toast.success("Nickname updated.")
       router.refresh()
     })
   }
@@ -106,6 +124,38 @@ export function SettingsForm({
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Nickname</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Set a display name that your group members will see instead of your full name.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Enter nickname (optional)"
+              value={nicknameValue}
+              onChange={(e) => setNicknameValue(e.target.value)}
+              maxLength={30}
+              className="max-w-xs"
+            />
+            <Button 
+              onClick={handleNickname} 
+              disabled={isPending || nicknameValue === (nickname ?? "")}
+              variant="outline"
+            >
+              Save
+            </Button>
+          </div>
+          {nicknameValue && (
+            <p className="text-xs text-muted-foreground">
+              Group members will see: <span className="font-medium text-foreground">{nicknameValue}</span>
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Timezone</CardTitle>
