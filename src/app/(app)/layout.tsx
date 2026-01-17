@@ -2,9 +2,14 @@ import { getServerSession } from "next-auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/db"
+import { getWeekKey, getLocalDateKey } from "@/lib/time"
+import { milliToDisplay } from "@/lib/points"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserMenu } from "@/components/user-menu"
 import { NavLink } from "@/components/nav-link"
+import { DynamicFavicon } from "@/components/dynamic-favicon"
+import { subDays } from "date-fns"
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
@@ -23,8 +28,62 @@ export default async function AppLayout({
     redirect("/auth/signin")
   }
 
+  // Fetch user data for dynamic favicon
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      timezone: true,
+      pointsWeekMilli: true,
+      pointsWeekKey: true,
+    },
+  })
+
+  const timezone = user?.timezone ?? "America/Chicago"
+  const now = new Date()
+  const currentWeekKey = getWeekKey(now, timezone)
+  
+  // Get weekly points (check if the stored week key matches current week)
+  const weeklyPoints = user?.pointsWeekKey === currentWeekKey 
+    ? milliToDisplay(user?.pointsWeekMilli ?? 0)
+    : 0
+
+  // Calculate weekly completion percentage
+  const goals = await prisma.goal.findMany({
+    where: { ownerId: session.user.id, active: true },
+    select: {
+      id: true,
+      cadenceType: true,
+      dailyTarget: true,
+      weeklyTarget: true,
+      checkIns: {
+        where: { weekKey: currentWeekKey, userId: session.user.id },
+        select: { id: true },
+      },
+    },
+  })
+
+  let totalTarget = 0
+  let totalDone = 0
+
+  for (const goal of goals) {
+    if (goal.cadenceType === "WEEKLY") {
+      totalTarget += goal.weeklyTarget ?? 1
+      totalDone += Math.min(goal.checkIns.length, goal.weeklyTarget ?? 1)
+    } else {
+      // Daily goals: target is dailyTarget * 7 per week
+      const dailyTarget = goal.dailyTarget ?? 1
+      totalTarget += dailyTarget * 7
+      totalDone += Math.min(goal.checkIns.length, dailyTarget * 7)
+    }
+  }
+
+  const completionPercent = totalTarget > 0 
+    ? Math.round((totalDone / totalTarget) * 100)
+    : 0
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/40 to-background">
+      <DynamicFavicon completionPercent={completionPercent} points={weeklyPoints} />
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-8">
