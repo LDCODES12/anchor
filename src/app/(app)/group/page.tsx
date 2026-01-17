@@ -7,12 +7,12 @@ import { getLocalDateKey, getWeekKey, getWeekStart } from "@/lib/time"
 import {
   computeDailyStreak,
   computeWeeklyStreak,
-  computeWeeklyPoints,
   computeConsistencyPercentage,
   computeGracefulStreak,
   summarizeDailyCheckIns,
   summarizeWeeklyCheckIns,
 } from "@/lib/scoring"
+import { getWeekKey as getWeekKeyFromTime } from "@/lib/time"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { CompletionRing } from "@/components/completion-ring"
@@ -132,7 +132,6 @@ export default async function GroupPage() {
     const userGoals = goals.filter((goal) => goal.ownerId === member.userId)
     const userWeekKey = getWeekKey(new Date(), member.user.timezone)
     const userTodayKey = getLocalDateKey(new Date(), member.user.timezone)
-    let totalPoints = 0
     let totalTarget = 0
     let totalCompleted = 0
     let completedToday = false
@@ -149,19 +148,6 @@ export default async function GroupPage() {
       const todayDone = todayCount >= goalDailyTarget
       if (todayDone) completedToday = true
 
-      const dailyStreak = computeDailyStreak(
-        summarizeDailyCheckIns(checkIns),
-        userTodayKey,
-        member.user.timezone,
-        goalDailyTarget
-      )
-
-      totalPoints += computeWeeklyPoints({
-        goal,
-        checkInsThisWeek: checkInsThisWeek.length,
-        dailyStreak,
-      })
-
       if (goal.cadenceType === "WEEKLY" && goal.weeklyTarget) {
         totalTarget += goal.weeklyTarget
         totalCompleted += Math.min(checkInsThisWeek.length, goal.weeklyTarget)
@@ -174,9 +160,15 @@ export default async function GroupPage() {
     const completionPct =
       totalTarget === 0 ? 0 : Math.round((totalCompleted / totalTarget) * 100)
 
+    // Use actual points from user record (new unified points system)
+    const currentWeekKey = getWeekKeyFromTime(new Date(), member.user.timezone)
+    const weekPoints = member.user.pointsWeekKey === currentWeekKey 
+      ? Math.floor(member.user.pointsWeekMilli / 1000)
+      : 0
+
     return {
       member,
-      totalPoints,
+      totalPoints: weekPoints,
       completionPct,
       completedToday,
     }
