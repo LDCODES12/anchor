@@ -104,22 +104,33 @@ export async function approveChallengeAction(challengeId: string) {
     return { ok: false, error: "Already approved this challenge" }
   }
 
-  // Create approval
-  await prisma.challengeApproval.create({
-    data: {
-      challengeId,
-      userId: session.user.id,
-    },
-  })
-
-  // Check if all members have now approved
-  const newApprovalCount = challenge.approvals.length + 1
-  if (newApprovalCount >= challenge.group.members.length) {
-    await prisma.groupChallenge.update({
-      where: { id: challengeId },
-      data: { status: "SCHEDULED" },
+  // Use transaction to avoid race conditions when multiple users approve simultaneously
+  await prisma.$transaction(async (tx) => {
+    // Create approval
+    await tx.challengeApproval.create({
+      data: {
+        challengeId,
+        userId: session.user.id,
+      },
     })
-  }
+
+    // Count approvals AFTER creating (atomic within transaction)
+    const approvalCount = await tx.challengeApproval.count({
+      where: { challengeId },
+    })
+    
+    const memberCount = await tx.groupMember.count({
+      where: { groupId: challenge.groupId },
+    })
+
+    // If all members have approved, transition to SCHEDULED
+    if (approvalCount >= memberCount) {
+      await tx.groupChallenge.update({
+        where: { id: challengeId },
+        data: { status: "SCHEDULED" },
+      })
+    }
+  })
 
   revalidatePath("/group")
   return { ok: true }
@@ -212,9 +223,10 @@ async function calculateMemberCompletions(
   const results: { userId: string; completionPercent: number }[] = []
 
   for (const userId of userIds) {
-    // Get all goals for this user in this group
+    // Get ALL active goals for this user (not just group goals)
+    // This measures their overall commitment during the challenge week
     const goals = await prisma.goal.findMany({
-      where: { ownerId: userId, groupId, active: true },
+      where: { ownerId: userId, active: true },
       select: {
         id: true,
         cadenceType: true,
@@ -224,8 +236,8 @@ async function calculateMemberCompletions(
     })
 
     if (goals.length === 0) {
-      // No goals = 100% (nothing to do)
-      results.push({ userId, completionPercent: 100 })
+      // No goals at all = 0% (member needs to set up goals to participate)
+      results.push({ userId, completionPercent: 0 })
       continue
     }
 
