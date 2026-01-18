@@ -29,6 +29,8 @@ import { Sparkline } from "@/components/sparkline"
 import { DismissRemindersButton } from "@/components/dismiss-reminders-button"
 import { DraggableDashboardGoals } from "@/components/draggable-dashboard-goals"
 import { PointsBackfill } from "@/components/points-backfill"
+import { UnifiedHeatmap } from "@/components/unified-heatmap"
+import { format, subWeeks, startOfWeek, addDays } from "date-fns"
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -107,7 +109,7 @@ export default async function DashboardPage() {
       dateKeys, todayKey, user.timezone, 30, goal.createdAt, dailyTarget
     )
     const recentCompletions = countRecentCompletions(dateKeys, todayKey, user.timezone, 30, dailyTarget)
-    const gracefulStreak = computeGracefulStreak(dateKeys, todayKey, user.timezone, goal.streakFreezes, dailyTarget)
+    const gracefulStreak = computeGracefulStreak(dateKeys, todayKey, user.timezone, undefined, dailyTarget)
     
     const weeklyCounts = summarizeWeeklyCheckIns(checkIns)
     const weeklyStreak =
@@ -235,6 +237,43 @@ export default async function DashboardPage() {
   const reminderLabel =
     user.reminderFrequency === "WEEKDAYS" ? "Weekdays" : "Daily"
 
+  // Prepare unified heatmap data (last 12 weeks)
+  const heatmapWeeks = 12
+  const heatmapStart = startOfWeek(subWeeks(now, heatmapWeeks - 1), { weekStartsOn: 0 })
+  const heatmapDays: { date: string; goals: { goalId: string; count: number }[] }[] = []
+  
+  // Generate all days
+  for (let i = 0; i < heatmapWeeks * 7; i++) {
+    const d = addDays(heatmapStart, i)
+    const dateKey = format(d, "yyyy-MM-dd")
+    heatmapDays.push({ date: dateKey, goals: [] })
+  }
+  
+  // Aggregate check-ins by date and goal
+  const checkInsByDateGoal = new Map<string, Map<string, number>>()
+  for (const item of todayGoals) {
+    for (const checkIn of item.checkIns) {
+      if (!checkInsByDateGoal.has(checkIn.localDateKey)) {
+        checkInsByDateGoal.set(checkIn.localDateKey, new Map())
+      }
+      const goalCounts = checkInsByDateGoal.get(checkIn.localDateKey)!
+      goalCounts.set(item.goal.id, (goalCounts.get(item.goal.id) ?? 0) + 1)
+    }
+  }
+  
+  // Populate heatmap data
+  for (const day of heatmapDays) {
+    const goalCounts = checkInsByDateGoal.get(day.date)
+    if (goalCounts) {
+      for (const [goalId, count] of goalCounts) {
+        day.goals.push({ goalId, count })
+      }
+    }
+  }
+  
+  // Get goal info for heatmap legend
+  const heatmapGoals = goals.map(g => ({ id: g.id, name: g.name }))
+
   return (
     <div id="dashboard" className="space-y-6">
       {/* Auto-backfill points for existing users */}
@@ -358,6 +397,18 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* Activity Heatmap */}
+      {goals.length > 0 && (
+        <div className="rounded-2xl border bg-card p-6 shadow-sm" data-focus-hide="true">
+          <h2 className="text-lg font-semibold mb-4">Activity</h2>
+          <UnifiedHeatmap 
+            data={heatmapDays}
+            goals={heatmapGoals}
+            weeks={12}
+          />
+        </div>
+      )}
+
       <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div id="today" className="space-y-4">
           <h2 className="text-lg font-semibold">Today&apos;s Goals</h2>
@@ -414,12 +465,6 @@ export default async function DashboardPage() {
                         <span>Current: {gracefulStreak.currentStreak}d</span>
                         <span>·</span>
                         <span>Best: {bestStreak}d</span>
-                        {gracefulStreak.freezesUsed > 0 && (
-                          <>
-                            <span>·</span>
-                            <span className="text-amber-500">{gracefulStreak.freezesUsed} freeze used</span>
-                          </>
-                        )}
                         {gracefulStreak.isAtRisk && (
                           <>
                             <span>·</span>

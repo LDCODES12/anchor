@@ -75,7 +75,7 @@ export default async function GoalsPage() {
               dateKeys,
               todayKey,
               user.timezone,
-              goal.streakFreezes,
+              undefined,
               dailyTarget
             )
             const consistency = computeConsistencyPercentage(

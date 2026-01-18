@@ -22,6 +22,14 @@ enum PointReason {
   ADJUSTMENT       // For manual corrections if ever needed
 }
 
+enum ChallengeStatus {
+  PENDING     // Waiting for all members to approve
+  SCHEDULED   // All approved, waiting for challenge week to start
+  ACTIVE      // Challenge week is in progress
+  SUCCEEDED   // All members hit threshold, rank increased
+  FAILED      // At least one member missed threshold
+}
+
 model User {
   id           String        @id @default(cuid())
   name         String
@@ -56,11 +64,13 @@ model Group {
   id         String        @id @default(cuid())
   name       String
   inviteCode String        @unique
+  rank       Int           @default(1)  // Group rank: 1=Bronze, 2=Silver, 3=Gold, 4=Platinum, 5+=Diamond
   createdAt  DateTime      @default(now())
 
-  members GroupMember[]
-  goals   Goal[]
-  reminders Reminder[]
+  members    GroupMember[]
+  goals      Goal[]
+  reminders  Reminder[]
+  challenges GroupChallenge[]
 }
 
 model GroupMember {
@@ -86,7 +96,6 @@ model Goal {
   pointsPerCheckIn Int          @default(10)
   weeklyTargetBonus Int         @default(20)
   streakBonus      Int          @default(5)
-  streakFreezes    Int          @default(1)  // Allowed freeze days per week
   sortOrder        Int          @default(0)  // For drag-and-drop ordering
   active           Boolean      @default(true)
   createdAt        DateTime     @default(now())
@@ -210,4 +219,34 @@ model PointLedger {
   @@index([userId, weekKey])
   @@index([userId, createdAt])
   @@index([goalId, weekKey])
+}
+
+// Group Challenge System
+// Challenges are weekly competitions where if all members hit 90%+ completion, the group ranks up
+model GroupChallenge {
+  id           String          @id @default(cuid())
+  groupId      String
+  weekKey      String          // The week the challenge runs (e.g., "2026-W04")
+  status       ChallengeStatus @default(PENDING)
+  threshold    Int             @default(90)   // Required completion percentage (default 90%)
+  createdById  String
+  createdAt    DateTime        @default(now())
+
+  group     Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  approvals ChallengeApproval[]
+
+  @@unique([groupId, weekKey])  // One challenge per group per week
+  @@index([groupId, status])
+}
+
+// Tracks which members have approved/joined a challenge
+model ChallengeApproval {
+  id          String   @id @default(cuid())
+  challengeId String
+  userId      String
+  approvedAt  DateTime @default(now())
+
+  challenge GroupChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, userId])  // One approval per user per challenge
 }

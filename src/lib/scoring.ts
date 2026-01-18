@@ -217,24 +217,25 @@ export function computeConsistencyPercentage(
 }
 
 /**
- * Compute streak with grace period - allows N misses without breaking streak
- * "Never miss twice" rule: consecutive misses beyond allowedFreezes breaks streak
+ * Compute current streak (consecutive days of completion).
+ * A single missed day breaks the streak.
  * 
- * For multi-target goals, a day is only "complete" if the full target is met
+ * For multi-target goals, a day is only "complete" if the full target is met.
+ * 
+ * @returns currentStreak - consecutive completed days ending at today (or yesterday if today incomplete)
+ * @returns isAtRisk - true if today is not yet complete but yesterday was (streak could be lost)
  */
 export function computeGracefulStreak(
   checkInDateKeys: string[],
   todayKey: string,
   timeZone: string,
-  allowedFreezes: number = 1,
+  _unused?: number, // Kept for backward compatibility, ignored
   dailyTarget: number = 1
-): { currentStreak: number; freezesUsed: number; isAtRisk: boolean } {
+): { currentStreak: number; isAtRisk: boolean } {
   // Ensure dailyTarget is at least 1
   const target = Math.max(1, dailyTarget ?? 1)
   const counts = countByDate(checkInDateKeys)
   let streak = 0
-  let freezesUsed = 0
-  let consecutiveMisses = 0
   let isAtRisk = false
 
   // Check if today is done (target met)
@@ -247,30 +248,19 @@ export function computeGracefulStreak(
     }
   }
 
-  // Iterate through days
-  let pendingFreezes = 0 // Freezes that might be used if we find more streak days
-  
+  // Count consecutive completed days
   for (let i = 0; i < 365; i++) {
     const dateKey = getDateKeyDaysAgo(i, todayKey, timeZone)
     
     if (isDayComplete(counts, dateKey, target)) {
       streak++
-      // Only count pending freezes if they actually connected to a streak day
-      freezesUsed += pendingFreezes
-      pendingFreezes = 0
-      consecutiveMisses = 0
     } else {
-      consecutiveMisses++
-      if (consecutiveMisses > allowedFreezes) {
-        // Too many consecutive misses - streak ends here
-        break
-      }
-      // This is a potential freeze (only counts if followed by a completed day)
-      pendingFreezes++
+      // First missed day breaks the streak
+      break
     }
   }
 
-  return { currentStreak: streak, freezesUsed, isAtRisk }
+  return { currentStreak: streak, isAtRisk }
 }
 
 /**

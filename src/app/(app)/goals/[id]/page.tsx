@@ -64,7 +64,7 @@ export default async function GoalDetailPage({
   const consistency = computeConsistencyPercentage(
     dateKeys, todayKey, user.timezone, 30, goal.createdAt, dailyTarget
   )
-  const gracefulStreak = computeGracefulStreak(dateKeys, todayKey, user.timezone, goal.streakFreezes, dailyTarget)
+  const gracefulStreak = computeGracefulStreak(dateKeys, todayKey, user.timezone, undefined, dailyTarget)
   const recentCompletions = countRecentCompletions(dateKeys, todayKey, user.timezone, 30, dailyTarget)
   const softMessage = !todayDone ? getSoftFailureMessage(consistency, recentCompletions, 30) : null
 
@@ -244,18 +244,11 @@ export default async function GoalDetailPage({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Current streak</span>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">
-                  {goal.cadenceType === "DAILY"
-                    ? `${gracefulStreak.currentStreak} days`
-                    : `${weeklyStreak} weeks`}
-                </Badge>
-                {gracefulStreak.freezesUsed > 0 && (
-                  <span className="text-xs text-amber-500">
-                    ({gracefulStreak.freezesUsed} freeze)
-                  </span>
-                )}
-              </div>
+              <Badge variant="secondary">
+                {goal.cadenceType === "DAILY"
+                  ? `${gracefulStreak.currentStreak} days`
+                  : `${weeklyStreak} weeks`}
+              </Badge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Best streak</span>

@@ -69,40 +69,38 @@ describe("graceful failure", () => {
     expect(consistency).toBe(50)
   })
 
-  it("computes graceful streak with 1 allowed freeze", () => {
+  it("computes streak correctly - single miss breaks it", () => {
     const tz = "America/Chicago"
     const today = new Date("2025-01-15T18:00:00Z")
     const todayKey = getLocalDateKey(today, tz)
     // Streak with one gap: day-0, day-1, day-2, [gap at day-3], day-4
-    // The algorithm will use freezes until it hits 2 consecutive misses
+    // Without freezes, the gap at day-3 should break the streak
     const keys = [
       getLocalDateKey(today, tz),          // day 0
       getLocalDateKey(subDays(today, 1), tz), // day -1
       getLocalDateKey(subDays(today, 2), tz), // day -2
-      // day -3 missing (first freeze)
-      getLocalDateKey(subDays(today, 4), tz), // day -4
-      // day -5 missing (second freeze, then day -6 miss breaks it)
+      // day -3 missing - breaks streak
+      getLocalDateKey(subDays(today, 4), tz), // day -4 (not counted due to gap)
     ]
-    const result = computeGracefulStreak(keys, todayKey, tz, 1)
-    // With 1 allowed freeze, streak extends through one gap, 
-    // but freezesUsed can be >1 when streak ends on misses
-    expect(result.currentStreak).toBe(4)
-    expect(result.freezesUsed).toBeGreaterThanOrEqual(1)
+    const result = computeGracefulStreak(keys, todayKey, tz)
+    // Without freezes, streak is only the consecutive days from today
+    expect(result.currentStreak).toBe(3)
     expect(result.isAtRisk).toBe(false)
   })
 
-  it("breaks streak when too many consecutive misses", () => {
+  it("detects at-risk streak when today is incomplete", () => {
     const tz = "America/Chicago"
     const today = new Date("2025-01-15T18:00:00Z")
     const todayKey = getLocalDateKey(today, tz)
-    // Check-ins with 2 gaps: today, day-3 (missing day-1 and day-2)
+    // Yesterday done, today not done - streak is at risk
     const keys = [
-      getLocalDateKey(today, tz),
-      getLocalDateKey(subDays(today, 3), tz),
+      getLocalDateKey(subDays(today, 1), tz), // yesterday done
+      getLocalDateKey(subDays(today, 2), tz), // day before done
     ]
-    const result = computeGracefulStreak(keys, todayKey, tz, 1)
-    // With 1 allowed freeze, 2 consecutive misses should break streak
-    expect(result.currentStreak).toBe(1)
+    const result = computeGracefulStreak(keys, todayKey, tz)
+    // Streak doesn't include today since it's not done
+    expect(result.currentStreak).toBe(0) // Today not done, no streak from today
+    expect(result.isAtRisk).toBe(true)
   })
 
   it("returns soft message based on consistency", () => {

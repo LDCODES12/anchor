@@ -5,7 +5,7 @@
  * - Weekly ceiling (1000 points max per user per week)
  * - Effort-weighted goal shares using logarithmic scaling
  * - Blended scoring curve that rewards finishing without being all-or-nothing
- * - Streak multipliers with freeze penalties
+ * - Streak multipliers for consistency
  * - Idempotent ledger-based awards
  * 
  * ACTIVE GOALS POLICY:
@@ -22,7 +22,6 @@ export const GAMMA = 1.8                    // Exponent for finish-weighted curv
 export const MAX_DAILY_TARGET = 10          // Cap for weight calculation
 export const STREAK_BONUS_PER_WEEK = 0.02   // 2% bonus per week of streak
 export const MAX_STREAK_BONUS = 0.10        // Cap streak bonus at 10%
-export const FREEZE_PENALTY = 0.5           // 50% reduction if freeze used recently
 
 // === TYPES ===
 export interface GoalForPoints {
@@ -126,23 +125,12 @@ export function deltaScore(P_before: number, P_after: number): number {
  * Calculate streak multiplier.
  * 
  * @param streakDays Current streak in days
- * @param freezeUsedRecently Whether a freeze was used in the last 7 days
  * @returns Multiplier to apply to base points (1.0 - 1.10)
  */
-export function streakMultiplier(
-  streakDays: number,
-  freezeUsedRecently: boolean
-): number {
+export function streakMultiplier(streakDays: number): number {
   // 2% bonus per full week of streak, capped at 10%
   const bonus = Math.min(MAX_STREAK_BONUS, STREAK_BONUS_PER_WEEK * Math.floor(streakDays / 7))
-  let mult = 1 + bonus
-  
-  // Reduce bonus if freeze was used (discourages abuse without punishing)
-  if (freezeUsedRecently) {
-    mult = 1 + (mult - 1) * FREEZE_PENALTY
-  }
-  
-  return mult
+  return 1 + bonus
 }
 
 /**
@@ -175,7 +163,6 @@ export function isGoalActiveForWeek(
  * @param P_after Weekly progress after this check-in
  * @param activeGoals All goals active for the week (for share calculation)
  * @param streakDays Current streak (for multiplier)
- * @param freezeUsedRecently Whether freeze was used recently
  * @param pointsAlreadyEarnedMilli Points already earned this week (for ceiling)
  */
 export function calculatePointsToAward(
@@ -184,7 +171,6 @@ export function calculatePointsToAward(
   P_after: number,
   activeGoals: GoalForPoints[],
   streakDays: number,
-  freezeUsedRecently: boolean,
   pointsAlreadyEarnedMilli: number
 ): { pointsMilli: number; streakBonusApplied: boolean } {
   // 1. Calculate this goal's share of the ceiling
@@ -194,7 +180,7 @@ export function calculatePointsToAward(
   const basePoints = share * deltaScore(P_before, P_after)
   
   // 3. Apply streak multiplier
-  const mult = streakMultiplier(streakDays, freezeUsedRecently)
+  const mult = streakMultiplier(streakDays)
   const streakBonusApplied = mult > 1
   let pointsToAward = basePoints * mult
   

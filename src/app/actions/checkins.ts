@@ -260,9 +260,8 @@ export async function checkInGoalAction(formData: FormData) {
       select: { localDateKey: true },
     })
     const dateKeys = summarizeDailyCheckIns(allCheckIns)
-    const gracefulStreak = computeGracefulStreak(dateKeys, localDateKey, user.timezone, goal.streakFreezes, dailyTarget)
+    const gracefulStreak = computeGracefulStreak(dateKeys, localDateKey, user.timezone, undefined, dailyTarget)
     const streakDays = gracefulStreak.currentStreak
-    const freezeUsedRecently = gracefulStreak.freezesUsed > 0
 
     // 6. Get points already earned this week
     const alreadyEarned = await tx.pointLedger.aggregate({
@@ -287,7 +286,6 @@ export async function checkInGoalAction(formData: FormData) {
       P_after,
       activeGoals,
       streakDays,
-      freezeUsedRecently,
       pointsAlreadyEarnedMilli
     )
 

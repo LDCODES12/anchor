@@ -23,6 +23,7 @@ import { InviteLinkCard } from "@/components/invite-link-card"
 import { WeeklySummaryCard } from "@/components/weekly-summary-card"
 import { computeWeeklySummary } from "@/lib/weekly-summary"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ChallengeCard, RankBadge } from "@/components/group-challenge"
 
 export default async function GroupPage() {
   const session = await getServerSession(authOptions)
@@ -102,7 +103,7 @@ export default async function GroupPage() {
         const consistency = computeConsistencyPercentage(
           dateKeys, todayKey, member.user.timezone, 30, goal.createdAt, dailyTarget
         )
-        const gracefulStreak = computeGracefulStreak(dateKeys, todayKey, member.user.timezone, goal.streakFreezes, dailyTarget)
+        const gracefulStreak = computeGracefulStreak(dateKeys, todayKey, member.user.timezone, undefined, dailyTarget)
         
         const weeklyStreak =
           goal.cadenceType === "WEEKLY" && goal.weeklyTarget
@@ -219,8 +220,11 @@ export default async function GroupPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{group.name}</h1>
-          <p className="text-sm text-muted-foreground">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">{group.name}</h1>
+            <RankBadge rank={group.rank} />
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
             {group.members.length} member{group.members.length !== 1 ? "s" : ""} • Code: <span className="font-medium text-foreground">{group.inviteCode}</span>
           </p>
         </div>
@@ -252,6 +256,9 @@ export default async function GroupPage() {
           ))}
         </div>
       </div>
+
+      {/* Challenge Card */}
+      <ChallengeCard groupId={group.id} />
 
       <InviteLinkCard inviteUrl={inviteUrl} inviteCode={group.inviteCode} />
 
