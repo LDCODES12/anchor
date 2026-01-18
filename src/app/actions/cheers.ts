@@ -43,3 +43,43 @@ export async function sendCheerAction(checkInId: string) {
   revalidatePath("/group")
   return { ok: true, userName: checkIn.user.name }
 }
+
+/**
+ * Dismiss a cheer notification (mark as read)
+ */
+export async function dismissCheerAction(cheerId: string) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return { ok: false, error: "Unauthorized" }
+
+  // Only the recipient (check-in owner) can dismiss their cheers
+  await prisma.cheer.updateMany({
+    where: {
+      id: cheerId,
+      checkIn: { userId: session.user.id },
+      readAt: null,
+    },
+    data: { readAt: new Date() },
+  })
+
+  revalidatePath("/dashboard")
+  return { ok: true }
+}
+
+/**
+ * Dismiss all cheer notifications for the current user
+ */
+export async function dismissAllCheersAction() {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return { ok: false, error: "Unauthorized" }
+
+  await prisma.cheer.updateMany({
+    where: {
+      checkIn: { userId: session.user.id },
+      readAt: null,
+    },
+    data: { readAt: new Date() },
+  })
+
+  revalidatePath("/dashboard")
+  return { ok: true }
+}

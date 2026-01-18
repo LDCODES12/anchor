@@ -27,6 +27,7 @@ import { FocusModeToggle } from "@/components/focus-mode-toggle"
 import { TinyHeatmap } from "@/components/tiny-heatmap"
 import { Sparkline } from "@/components/sparkline"
 import { DismissRemindersButton } from "@/components/dismiss-reminders-button"
+import { DismissCheerButton, DismissAllCheersButton } from "@/components/dismiss-cheers-button"
 import { DraggableDashboardGoals } from "@/components/draggable-dashboard-goals"
 import { PointsBackfill } from "@/components/points-backfill"
 import { UnifiedHeatmap } from "@/components/unified-heatmap"
@@ -64,11 +65,12 @@ export default async function DashboardPage() {
     message: reminder.message,
   }))
 
-  // Fetch recent cheers on user's check-ins (last 7 days)
+  // Fetch recent unread cheers on user's check-ins (last 7 days)
   const recentCheers = await prisma.cheer.findMany({
     where: {
       checkIn: { userId: user.id },
       createdAt: { gte: subDays(new Date(), 7) },
+      readAt: null, // Only show unread cheers
     },
     include: {
       sender: { select: { name: true, nickname: true } },
@@ -335,21 +337,28 @@ export default async function DashboardPage() {
           {/* Cheers */}
           {recentCheers.length > 0 && (
             <div className="space-y-1.5">
+              {recentCheers.length > 1 && (
+                <div className="flex justify-end">
+                  <DismissAllCheersButton />
+                </div>
+              )}
               {recentCheers.map((cheer) => (
                 <div 
                   key={cheer.id}
-                  className="flex items-center justify-between text-sm rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2"
+                  className="flex items-center justify-between gap-2 text-sm rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2"
                 >
-                  <span>
+                  <span className="min-w-0 flex-1">
                     <span className="text-emerald-600 dark:text-emerald-400">👏</span>{" "}
                     <span className="font-medium">{cheer.sender.nickname ?? cheer.sender.name}</span>
                     <span className="text-muted-foreground"> cheered your </span>
                     <span className="font-medium">{cheer.checkIn.goal.name}</span>
-                    <span className="text-muted-foreground"> completion</span>
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    {cheer.createdAt.toLocaleDateString([], { month: "short", day: "numeric" })}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground">
+                      {cheer.createdAt.toLocaleDateString([], { month: "short", day: "numeric" })}
+                    </span>
+                    <DismissCheerButton cheerId={cheer.id} />
+                  </div>
                 </div>
               ))}
             </div>

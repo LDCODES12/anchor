@@ -156,6 +156,7 @@ model Cheer {
   checkInId   String
   senderId    String
   createdAt   DateTime @default(now())
+  readAt      DateTime?  // When the recipient dismissed/read this cheer
 
   checkIn   CheckIn @relation(fields: [checkInId], references: [id], onDelete: Cascade)
   sender    User    @relation(fields: [senderId], references: [id], onDelete: Cascade)
