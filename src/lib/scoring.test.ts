@@ -96,11 +96,26 @@ describe("graceful failure", () => {
     const keys = [
       getLocalDateKey(subDays(today, 1), tz), // yesterday done
       getLocalDateKey(subDays(today, 2), tz), // day before done
+      getLocalDateKey(subDays(today, 3), tz), // 3 days ago done
     ]
     const result = computeGracefulStreak(keys, todayKey, tz)
-    // Streak doesn't include today since it's not done
-    expect(result.currentStreak).toBe(0) // Today not done, no streak from today
+    // Shows the streak from yesterday that could be lost
+    expect(result.currentStreak).toBe(3) // 3-day streak from yesterday
     expect(result.isAtRisk).toBe(true)
+  })
+
+  it("returns zero streak when neither today nor yesterday is complete", () => {
+    const tz = "America/Chicago"
+    const today = new Date("2025-01-15T18:00:00Z")
+    const todayKey = getLocalDateKey(today, tz)
+    // Today and yesterday not done - no active streak
+    const keys = [
+      getLocalDateKey(subDays(today, 2), tz), // 2 days ago done
+      getLocalDateKey(subDays(today, 3), tz), // 3 days ago done
+    ]
+    const result = computeGracefulStreak(keys, todayKey, tz)
+    expect(result.currentStreak).toBe(0)
+    expect(result.isAtRisk).toBe(false) // Nothing to be at risk - already lost
   })
 
   it("returns soft message based on consistency", () => {

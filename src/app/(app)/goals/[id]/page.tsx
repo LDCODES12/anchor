@@ -157,9 +157,9 @@ export default async function GoalDetailPage({
         </div>
       )}
 
-      {gracefulStreak.isAtRisk && (
+      {goal.cadenceType === "DAILY" && gracefulStreak.isAtRisk && (
         <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
-          Your streak is at risk! Complete today to keep it alive.
+          Your {gracefulStreak.currentStreak}-day streak is at risk! Complete today to keep it alive.
         </div>
       )}
 
@@ -250,10 +250,12 @@ export default async function GoalDetailPage({
                   : `${weeklyStreak} weeks`}
               </Badge>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Best streak</span>
-              <span className="text-lg font-semibold">{bestDailyStreak} days</span>
-            </div>
+            {goal.cadenceType === "DAILY" && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Best streak</span>
+                <span className="text-lg font-semibold">{bestDailyStreak} days</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Total completions</span>
               <span className="text-lg font-semibold">{checkIns.length}</span>

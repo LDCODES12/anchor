@@ -222,8 +222,9 @@ export function computeConsistencyPercentage(
  * 
  * For multi-target goals, a day is only "complete" if the full target is met.
  * 
- * @returns currentStreak - consecutive completed days ending at today (or yesterday if today incomplete)
- * @returns isAtRisk - true if today is not yet complete but yesterday was (streak could be lost)
+ * @returns currentStreak - consecutive completed days. If today is incomplete but yesterday was done,
+ *                          returns the streak ending at yesterday (the streak you might lose).
+ * @returns isAtRisk - true if today is not yet complete but you have an active streak from yesterday
  */
 export function computeGracefulStreak(
   checkInDateKeys: string[],
@@ -235,21 +236,32 @@ export function computeGracefulStreak(
   // Ensure dailyTarget is at least 1
   const target = Math.max(1, dailyTarget ?? 1)
   const counts = countByDate(checkInDateKeys)
-  let streak = 0
-  let isAtRisk = false
-
+  
   // Check if today is done (target met)
   const todayDone = isDayComplete(counts, todayKey, target)
-  if (!todayDone) {
-    // Check yesterday - if yesterday was done, streak is at risk but not broken
-    const yesterdayKey = getDateKeyDaysAgo(1, todayKey, timeZone)
-    if (isDayComplete(counts, yesterdayKey, target)) {
-      isAtRisk = true
-    }
+  const yesterdayKey = getDateKeyDaysAgo(1, todayKey, timeZone)
+  const yesterdayDone = isDayComplete(counts, yesterdayKey, target)
+  
+  // Determine starting point for streak count
+  let startOffset = 0
+  let isAtRisk = false
+  
+  if (todayDone) {
+    // Today is done, count from today
+    startOffset = 0
+  } else if (yesterdayDone) {
+    // Today not done but yesterday was - streak is at risk
+    // Count from yesterday to show what they might lose
+    startOffset = 1
+    isAtRisk = true
+  } else {
+    // Neither today nor yesterday done - no active streak
+    return { currentStreak: 0, isAtRisk: false }
   }
 
-  // Count consecutive completed days
-  for (let i = 0; i < 365; i++) {
+  // Count consecutive completed days starting from startOffset
+  let streak = 0
+  for (let i = startOffset; i < 365; i++) {
     const dateKey = getDateKeyDaysAgo(i, todayKey, timeZone)
     
     if (isDayComplete(counts, dateKey, target)) {
