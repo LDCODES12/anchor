@@ -19,6 +19,7 @@ import { toast } from "sonner"
 interface CreateChallengeDialogProps {
   groupId: string
   isLeader: boolean
+  onChallengeCreated?: () => void
 }
 
 type ChallengeMode = "STANDARD" | "TEAM_VS_TEAM" | "DUO_COMPETITION"
@@ -63,7 +64,7 @@ const THRESHOLD_OPTIONS = [
   { value: 100, label: "100% - Perfect" },
 ]
 
-export function CreateChallengeDialog({ groupId, isLeader }: CreateChallengeDialogProps) {
+export function CreateChallengeDialog({ groupId, isLeader, onChallengeCreated }: CreateChallengeDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<ChallengeMode>("STANDARD")
@@ -85,6 +86,7 @@ export function CreateChallengeDialog({ groupId, isLeader }: CreateChallengeDial
           description: "Waiting for all members to approve.",
         })
         setOpen(false)
+        onChallengeCreated?.()
       } else {
         toast.error("Failed to create challenge", {
           description: result.error,

@@ -258,7 +258,7 @@ export default async function GroupPage() {
       </div>
 
       {/* Challenge Card */}
-      <ChallengeCard groupId={group.id} />
+      <ChallengeCard groupId={group.id} userRole={membership.role} />
 
       <InviteLinkCard inviteUrl={inviteUrl} inviteCode={group.inviteCode} />
 

@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import {
-  createChallengeAction,
   approveChallengeAction,
   getGroupChallengeAction,
 } from "@/app/actions/challenges"
 import { getRankName } from "@/lib/ranks"
 import { toast } from "sonner"
+import { CreateChallengeDialog } from "./create-challenge-dialog"
 
 // Rank colors
 const RANK_CONFIG: Record<number, { color: string; bgColor: string; borderColor: string }> = {
@@ -63,7 +63,7 @@ export function RankBadge({ rank, size = "default" }: { rank: number; size?: "sm
 /**
  * Challenge Card - Compact inline challenge component
  */
-export function ChallengeCard({ groupId }: { groupId: string }) {
+export function ChallengeCard({ groupId, userRole }: { groupId: string; userRole?: string }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [challenge, setChallenge] = useState<{
@@ -92,22 +92,6 @@ export function ChallengeCard({ groupId }: { groupId: string }) {
     load()
   }, [groupId])
 
-  const handleCreateChallenge = () => {
-    startTransition(async () => {
-      const result = await createChallengeAction(groupId)
-      if (result.ok) {
-        toast.success("Challenge proposed!")
-        router.refresh()
-        const newData = await getGroupChallengeAction(groupId)
-        if (newData.ok) {
-          setChallenge(newData.challenge ?? null)
-          setGroupRank(newData.groupRank ?? 1)
-        }
-      } else {
-        toast.error(result.error ?? "Failed to create challenge")
-      }
-    })
-  }
 
   const handleApprove = () => {
     if (!challenge) return
@@ -163,9 +147,17 @@ export function ChallengeCard({ groupId }: { groupId: string }) {
               </div>
             </div>
           </div>
-          <Button onClick={handleCreateChallenge} disabled={isPending} size="sm">
-            Propose
-          </Button>
+          <CreateChallengeDialog
+            groupId={groupId}
+            isLeader={userRole === "ADMIN"}
+            onChallengeCreated={async () => {
+              const newData = await getGroupChallengeAction(groupId)
+              if (newData.ok) {
+                setChallenge(newData.challenge ?? null)
+                setGroupRank(newData.groupRank ?? 1)
+              }
+            }}
+          />
         </div>
       </div>
     )
@@ -266,9 +258,17 @@ export function ChallengeCard({ groupId }: { groupId: string }) {
               </div>
             </div>
           </div>
-          <Button onClick={handleCreateChallenge} disabled={isPending} size="sm" variant="outline">
-            Next Challenge
-          </Button>
+          <CreateChallengeDialog
+            groupId={groupId}
+            isLeader={userRole === "ADMIN"}
+            onChallengeCreated={async () => {
+              const newData = await getGroupChallengeAction(groupId)
+              if (newData.ok) {
+                setChallenge(newData.challenge ?? null)
+                setGroupRank(newData.groupRank ?? 1)
+              }
+            }}
+          />
         </div>
       </div>
     )
@@ -290,9 +290,17 @@ export function ChallengeCard({ groupId }: { groupId: string }) {
               </div>
             </div>
           </div>
-          <Button onClick={handleCreateChallenge} disabled={isPending} size="sm">
-            New Challenge
-          </Button>
+          <CreateChallengeDialog
+            groupId={groupId}
+            isLeader={userRole === "ADMIN"}
+            onChallengeCreated={async () => {
+              const newData = await getGroupChallengeAction(groupId)
+              if (newData.ok) {
+                setChallenge(newData.challenge ?? null)
+                setGroupRank(newData.groupRank ?? 1)
+              }
+            }}
+          />
         </div>
       </div>
     )
