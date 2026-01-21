@@ -520,6 +520,32 @@ export async function getGroupChallengeAction(groupId: string) {
 }
 
 /**
+ * Reset/delete a challenge for a group (admin only).
+ * Useful for fixing migration issues or canceling pending challenges.
+ */
+export async function resetGroupChallengeAction(groupId: string) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return { ok: false, error: "Unauthorized" }
+
+  // Check if user is an ADMIN (group leader)
+  const membership = await prisma.groupMember.findFirst({
+    where: { userId: session.user.id, groupId },
+  })
+  if (!membership) return { ok: false, error: "Not a member of this group" }
+  if (membership.role !== "ADMIN") {
+    return { ok: false, error: "Only group leaders can reset challenges" }
+  }
+
+  // Delete all challenges for this group (both pending and completed)
+  await prisma.groupChallenge.deleteMany({
+    where: { groupId },
+  })
+
+  revalidatePath("/group")
+  return { ok: true, message: "All group challenges have been reset" }
+}
+
+/**
  * Get challenge results for a completed challenge.
  */
 export async function getChallengeResultsAction(challengeId: string) {
