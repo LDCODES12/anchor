@@ -11,7 +11,6 @@ import {
   createChallengeAction,
   approveChallengeAction,
   getGroupChallengeAction,
-  resetGroupChallengeAction,
 } from "@/app/actions/challenges"
 import { getRankName } from "@/lib/ranks"
 import { toast } from "sonner"
@@ -64,7 +63,7 @@ export function RankBadge({ rank, size = "default" }: { rank: number; size?: "sm
 /**
  * Challenge Card - Compact inline challenge component
  */
-export function ChallengeCard({ groupId, userRole }: { groupId: string; userRole?: string }) {
+export function ChallengeCard({ groupId }: { groupId: string }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [challenge, setChallenge] = useState<{
@@ -124,23 +123,6 @@ export function ChallengeCard({ groupId, userRole }: { groupId: string; userRole
         }
       } else {
         toast.error(result.error ?? "Failed to join")
-      }
-    })
-  }
-
-  const handleResetChallenge = () => {
-    startTransition(async () => {
-      const result = await resetGroupChallengeAction(groupId)
-      if (result.ok) {
-        toast.success("Challenge reset successfully")
-        router.refresh()
-        const newData = await getGroupChallengeAction(groupId)
-        if (newData.ok) {
-          setChallenge(newData.challenge ?? null)
-          setGroupRank(newData.groupRank ?? 1)
-        }
-      } else {
-        toast.error(result.error ?? "Failed to reset challenge")
       }
     })
   }
@@ -208,23 +190,16 @@ export function ChallengeCard({ groupId, userRole }: { groupId: string; userRole
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {userRole === "ADMIN" && (
-              <Button onClick={handleResetChallenge} disabled={isPending} size="sm" variant="outline">
-                Reset
-              </Button>
-            )}
-            {challenge.hasApproved ? (
-              <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
-                <Check className="h-3.5 w-3.5" />
-                Joined
-              </div>
-            ) : (
-              <Button onClick={handleApprove} disabled={isPending} size="sm" variant="default">
-                Join
-              </Button>
-            )}
-          </div>
+          {challenge.hasApproved ? (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+              <Check className="h-3.5 w-3.5" />
+              Joined
+            </div>
+          ) : (
+            <Button onClick={handleApprove} disabled={isPending} size="sm" variant="default">
+              Join
+            </Button>
+          )}
         </div>
         <Progress value={approvalProgress} className="h-1.5" />
       </div>
@@ -247,14 +222,7 @@ export function ChallengeCard({ groupId, userRole }: { groupId: string; userRole
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {userRole === "ADMIN" && (
-              <Button onClick={handleResetChallenge} disabled={isPending} size="sm" variant="outline">
-                Reset
-              </Button>
-            )}
-            <RankBadge rank={groupRank} size="sm" />
-          </div>
+          <RankBadge rank={groupRank} size="sm" />
         </div>
       </div>
     )
@@ -276,14 +244,7 @@ export function ChallengeCard({ groupId, userRole }: { groupId: string; userRole
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {userRole === "ADMIN" && (
-              <Button onClick={handleResetChallenge} disabled={isPending} size="sm" variant="outline">
-                Reset
-              </Button>
-            )}
-            <RankBadge rank={groupRank} size="sm" />
-          </div>
+          <RankBadge rank={groupRank} size="sm" />
         </div>
       </div>
     )
@@ -305,16 +266,9 @@ export function ChallengeCard({ groupId, userRole }: { groupId: string; userRole
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {userRole === "ADMIN" && (
-              <Button onClick={handleResetChallenge} disabled={isPending} size="sm" variant="outline">
-                Reset
-              </Button>
-            )}
-            <Button onClick={handleCreateChallenge} disabled={isPending} size="sm" variant="outline">
-              Next Challenge
-            </Button>
-          </div>
+          <Button onClick={handleCreateChallenge} disabled={isPending} size="sm" variant="outline">
+            Next Challenge
+          </Button>
         </div>
       </div>
     )
@@ -336,16 +290,9 @@ export function ChallengeCard({ groupId, userRole }: { groupId: string; userRole
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {userRole === "ADMIN" && (
-              <Button onClick={handleResetChallenge} disabled={isPending} size="sm" variant="outline">
-                Reset
-              </Button>
-            )}
-            <Button onClick={handleCreateChallenge} disabled={isPending} size="sm">
-              New Challenge
-            </Button>
-          </div>
+          <Button onClick={handleCreateChallenge} disabled={isPending} size="sm">
+            New Challenge
+          </Button>
         </div>
       </div>
     )
